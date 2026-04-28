@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base resets for age-friendly design ── */
+@layer base {
+  :root {
+    --font-sans: "Inter", system-ui, sans-serif;
+    --font-hebrew: "SBL Hebrew", "Arial Hebrew", "David", serif;
+  }
+
+  html {
+    /* Prevent font-size from scaling down on mobile zoom */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-cream text-gray-800 antialiased;
+    /* Comfortable reading line-height throughout */
+    line-height: 1.7;
+  }
+
+  /* All interactive elements meet minimum 48px touch target */
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea {
+    min-height: 48px;
+  }
+
+  /* Hebrew text: always RTL, larger baseline */
+  .hebrew {
+    direction: rtl;
+    font-family: var(--font-hebrew), serif;
+    font-size: 2rem;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+  }
+
+  .hebrew-lg {
+    direction: rtl;
+    font-family: var(--font-hebrew), serif;
+    font-size: 2.75rem;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+  }
+
+  /* Focus rings — clear for keyboard / accessibility */
+  *:focus-visible {
+    @apply outline-none ring-4 ring-sky-400 ring-offset-2;
+  }
+}
+
+/* ── Utility classes ── */
+@layer utilities {
+  /* Flip animation for flashcard reveal */
+  .perspective {
+    perspective: 1200px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  /* Smooth card flip */
+  .card-flip {
+    transition: transform 0.45s ease;
+    transform-style: preserve-3d;
+  }
+
+  .card-flip.flipped {
+    transform: rotateY(180deg);
+  }
+}
