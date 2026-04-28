@@ -2,85 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Base resets for age-friendly design ── */
 @layer base {
   :root {
     --font-sans: "Inter", system-ui, sans-serif;
-    --font-hebrew: "SBL Hebrew", "Arial Hebrew", "David", serif;
+    --font-hebrew: "Noto Serif Hebrew", "Arial Hebrew", "David", serif;
   }
 
   html {
-    /* Prevent font-size from scaling down on mobile zoom */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-cream text-gray-800 antialiased;
-    /* Comfortable reading line-height throughout */
+    background-color: #F7F5F0;
+    color: #111827;
+    font-size: 1.0625rem; /* 17px base */
     line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* All interactive elements meet minimum 48px touch target */
-  button,
-  [role="button"],
-  a,
-  input,
-  select,
-  textarea {
-    min-height: 48px;
-  }
-
-  /* Hebrew text: always RTL, larger baseline */
-  .hebrew {
-    direction: rtl;
-    font-family: var(--font-hebrew), serif;
-    font-size: 2rem;
-    line-height: 1.5;
-    letter-spacing: 0.02em;
-  }
-
-  .hebrew-lg {
-    direction: rtl;
-    font-family: var(--font-hebrew), serif;
-    font-size: 2.75rem;
-    line-height: 1.4;
-    letter-spacing: 0.02em;
-  }
-
-  /* Focus rings — clear for keyboard / accessibility */
+  /* Age-friendly focus rings */
   *:focus-visible {
-    @apply outline-none ring-4 ring-sky-400 ring-offset-2;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.45);
+    border-radius: 8px;
+  }
+
+  /* Hebrew text base */
+  [lang="he"],
+  [dir="rtl"] {
+    font-family: var(--font-hebrew), serif;
   }
 }
 
-/* ── Utility classes ── */
+@layer components {
+  /* Reusable input style for teacher forms */
+  .input-field {
+    @apply w-full px-4 py-3 text-base bg-white border-2 border-gray-200 rounded-xl
+           focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100
+           transition-colors placeholder:text-gray-300;
+    min-height: 48px;
+  }
+
+  /* Card base */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100;
+  }
+
+  /* Touch-safe button base */
+  .btn {
+    @apply inline-flex items-center justify-center font-semibold rounded-xl
+           transition-all duration-150 select-none active:scale-[0.97]
+           disabled:opacity-50 disabled:pointer-events-none;
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  .btn-primary {
+    @apply btn bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white px-6 py-3;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-700
+           border-2 border-gray-200 px-6 py-3;
+  }
+}
+
 @layer utilities {
-  /* Flip animation for flashcard reveal */
+  /* Flip animation utilities */
   .perspective {
     perspective: 1200px;
   }
-
   .preserve-3d {
     transform-style: preserve-3d;
   }
-
   .backface-hidden {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
   }
-
   .rotate-y-180 {
     transform: rotateY(180deg);
   }
 
-  /* Smooth card flip */
-  .card-flip {
-    transition: transform 0.45s ease;
-    transform-style: preserve-3d;
+  /* Smooth bottom-nav safe area */
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
 
-  .card-flip.flipped {
-    transform: rotateY(180deg);
+  /* Warm text */
+  .text-warm {
+    color: #44403c;
   }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out both;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out both;
 }

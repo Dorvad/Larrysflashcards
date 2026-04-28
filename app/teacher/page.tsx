@@ -1,220 +1,147 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { TopBar } from "@/components/layout/TopBar";
-import { Card } from "@/components/ui/Card";
-import type { Profile, SessionSummary } from "@/types/database";
+import {
+  WORDS,
+  PENDING_WORDS,
+  getDueToday,
+  getWeakWords,
+  PRACTICE_SESSIONS,
+  NEXT_LESSON_SUGGESTIONS,
+} from "@/lib/mock-data";
+import StatusBadge from "@/components/shared/StatusBadge";
+import HebrewText from "@/components/shared/HebrewText";
 
-export default async function TeacherDashboard() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-  if (!profile || profile.role !== "teacher") redirect("/practice");
-
-  // Quick stats
-  const { count: wordCount } = await supabase
-    .from("words")
-    .select("*", { count: "exact", head: true })
-    .eq("is_active", true);
-
-  const { count: setCount } = await supabase
-    .from("word_sets")
-    .select("*", { count: "exact", head: true });
-
-  const { data: recentSessions } = await supabase
-    .from("session_summary")
-    .select("*")
-    .order("started_at", { ascending: false })
-    .limit(5)
-    .returns<SessionSummary[]>();
-
-  const lastSession = recentSessions?.[0];
+export default function TeacherDashboard() {
+  const dueToday = getDueToday();
+  const weakWords = getWeakWords();
 
   return (
-    <div className="min-h-screen bg-cream">
-      <TopBar profile={profile} title="Teacher Dashboard" />
+    <div>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">👋 Hello, Dor</h1>
+        <p className="text-base text-gray-500 mt-1">Here&rsquo;s how Larry is doing.</p>
+      </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        <p className="text-lg text-gray-500 mb-8">
-          Welcome back, {profile.display_name}. Here&rsquo;s how Larry is doing.
+      {/* Stats row */}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard emoji="📝" value={WORDS.length} label="Active words" />
+        <StatCard emoji="📅" value={dueToday.length} label="Due today" />
+        <StatCard emoji="💪" value={weakWords.length} label="Struggling" />
+        <StatCard emoji="📬" value={PENDING_WORDS.length} label="Pending words" />
+      </div>
+
+      {/* Pending words from Larry */}
+      {PENDING_WORDS.length > 0 && (
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-semibold text-gray-800">📬 Words from Larry</h2>
+            <Link href="/teacher/pending" className="text-sm text-sky-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          {PENDING_WORDS.slice(0, 2).map((word) => (
+            <div
+              key={word.id}
+              className="bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3 border-l-4 border-sky-300 mb-2"
+            >
+              <div className="shrink-0">
+                {word.hebrewGuess ? (
+                  <HebrewText size="sm" className="text-gray-800">
+                    {word.hebrewGuess}
+                  </HebrewText>
+                ) : (
+                  <span className="text-xl text-gray-400">?</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-medium text-gray-800">{word.englishDescription}</p>
+                <p className="text-sm text-gray-500">{word.heardWhere}</p>
+                <p className="text-xs text-gray-400 mt-1">{word.submittedAt}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Suggested next lesson */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">🎯 Suggested for next lesson</h2>
+        <p className="text-sm text-gray-500 mb-3">
+          Words Larry finds hardest — worth reviewing together.
         </p>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <StatCard label="Active words" value={String(wordCount ?? 0)} emoji="📝" />
-          <StatCard label="Lessons" value={String(setCount ?? 0)} emoji="📚" />
-          {lastSession && (
-            <StatCard
-              label="Last practice"
-              value={
-                lastSession.score_pct !== null
-                  ? `${lastSession.score_pct}%`
-                  : "—"
-              }
-              emoji="🎯"
-              subtitle={new Date(lastSession.started_at).toLocaleDateString()}
-            />
-          )}
-          <StatCard
-            label="Sessions total"
-            value={String(recentSessions?.length ?? 0)}
-            emoji="🔄"
-            subtitle="recent 5 shown"
-          />
-        </div>
-
-        {/* Quick actions */}
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">Quick actions</h2>
-        <div className="grid gap-3 mb-10">
-          <ActionLink
-            href="/teacher/words/new"
-            emoji="➕"
-            title="Add a new word"
-            description="Add a Hebrew word with translation and notes"
-          />
-          <ActionLink
-            href="/teacher/words"
-            emoji="📝"
-            title="Manage words"
-            description="Edit, reorder, or deactivate words"
-          />
-          <ActionLink
-            href="/teacher/sets"
-            emoji="🗂️"
-            title="Manage lessons"
-            description="Create or edit lesson groups"
-          />
-          <ActionLink
-            href="/teacher/progress"
-            emoji="📊"
-            title="Larry's progress"
-            description="See detailed practice history and accuracy"
-          />
-        </div>
-
-        {/* Recent sessions */}
-        {(recentSessions ?? []).length > 0 && (
-          <>
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">
-              Recent sessions
-            </h2>
-            <div className="flex flex-col gap-3">
-              {recentSessions!.map((s) => (
-                <Card key={s.id}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-lg font-medium text-gray-800">
-                        {s.word_set_name ?? "All words"}
-                      </p>
-                      <p className="text-base text-gray-500 mt-0.5">
-                        {new Date(s.started_at).toLocaleDateString()} ·{" "}
-                        {s.total_cards} cards ·{" "}
-                        {s.correct_count} correct
-                      </p>
-                    </div>
-                    {s.score_pct !== null && (
-                      <span
-                        className={`text-xl font-bold ${
-                          s.score_pct >= 80
-                            ? "text-green-500"
-                            : s.score_pct >= 60
-                            ? "text-yellow-500"
-                            : "text-red-500"
-                        }`}
-                      >
-                        {s.score_pct}%
-                      </span>
-                    )}
-                  </div>
-                </Card>
-              ))}
+        {NEXT_LESSON_SUGGESTIONS.slice(0, 4).map((word) => (
+          <div
+            key={word.id}
+            className="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm mb-2"
+          >
+            <HebrewText size="sm" className="shrink-0">
+              {word.hebrewNiqqud}
+            </HebrewText>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-medium text-gray-800">{word.english}</p>
+              <p className="text-sm text-gray-400 italic">{word.transliteration}</p>
             </div>
-            <div className="mt-4 text-center">
-              <Link
-                href="/teacher/progress"
-                className="text-base text-sky-600 hover:underline"
-              >
-                View full history →
-              </Link>
+            <StatusBadge status={word.status} />
+          </div>
+        ))}
+      </div>
+
+      {/* Recent activity */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">Recent practice sessions</h2>
+        {PRACTICE_SESSIONS.slice(0, 3).map((session) => {
+          const pct = Math.round((session.scores.knew / session.wordCount) * 100);
+          const scoreColor =
+            pct >= 80
+              ? "text-emerald-600"
+              : pct >= 60
+              ? "text-amber-500"
+              : "text-rose-500";
+          const formattedDate = new Date(session.date).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+          return (
+            <div
+              key={session.id}
+              className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm mb-2"
+            >
+              <div>
+                <p className="text-base font-medium text-gray-800">{formattedDate}</p>
+                <p className="text-sm text-gray-500">{session.wordCount} words</p>
+              </div>
+              <span className={`text-xl font-bold ${scoreColor}`}>{pct}%</span>
             </div>
-          </>
-        )}
-      </main>
+          );
+        })}
+        <Link
+          href="/teacher/progress"
+          className="text-sm text-sky-600 hover:underline mt-2 block"
+        >
+          View full progress →
+        </Link>
+      </div>
     </div>
   );
 }
 
 function StatCard({
-  label,
+  emoji,
   value,
-  emoji,
-  subtitle,
+  label,
 }: {
+  emoji: string;
+  value: number;
   label: string;
-  value: string;
-  emoji: string;
-  subtitle?: string;
 }) {
   return (
-    <div className="bg-white rounded-3xl shadow-card p-5">
-      <p className="text-2xl mb-2" aria-hidden="true">
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <span className="text-xl" aria-hidden="true">
         {emoji}
-      </p>
-      <p className="text-3xl font-bold text-gray-800">{value}</p>
-      <p className="text-base text-gray-500 mt-0.5">{label}</p>
-      {subtitle && (
-        <p className="text-sm text-gray-400 mt-0.5">{subtitle}</p>
-      )}
+      </span>
+      <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+      <p className="text-sm text-gray-500 mt-0.5">{label}</p>
     </div>
-  );
-}
-
-function ActionLink({
-  href,
-  emoji,
-  title,
-  description,
-}: {
-  href: string;
-  emoji: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link href={href} className="block">
-      <Card>
-        <div className="flex items-center gap-4">
-          <span className="text-2xl shrink-0" aria-hidden="true">
-            {emoji}
-          </span>
-          <div className="min-w-0">
-            <p className="text-lg font-semibold text-gray-800">{title}</p>
-            <p className="text-base text-gray-500 truncate">{description}</p>
-          </div>
-          <svg
-            className="ml-auto shrink-0 text-gray-400"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </div>
-      </Card>
-    </Link>
   );
 }

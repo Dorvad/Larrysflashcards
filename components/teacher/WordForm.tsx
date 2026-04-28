@@ -2,222 +2,250 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import type { Word, WordSet } from "@/types/database";
+import type { Word, WordCategory, Difficulty } from "@/types";
+
+const CATEGORIES: WordCategory[] = [
+  "Greetings",
+  "Food & Drink",
+  "Daily life",
+  "Travel",
+  "Useful phrases",
+  "Verbs",
+  "Jewish holidays",
+  "Lesson words",
+  "Numbers",
+  "Family",
+];
 
 interface WordFormProps {
   word?: Word;
-  wordSets: WordSet[];
-  teacherId: string;
 }
 
-export function WordForm({ word, wordSets, teacherId }: WordFormProps) {
+export function WordForm({ word }: WordFormProps) {
   const router = useRouter();
-  const supabase = createClient();
   const isEditing = Boolean(word);
 
-  const [hebrew, setHebrew] = useState(word?.hebrew ?? "");
+  const [hebrewNiqqud, setHebrewNiqqud] = useState(word?.hebrewNiqqud ?? "");
+  const [hebrewPlain, setHebrewPlain] = useState(word?.hebrewPlain ?? "");
   const [transliteration, setTransliteration] = useState(
     word?.transliteration ?? ""
   );
   const [english, setEnglish] = useState(word?.english ?? "");
-  const [notes, setNotes] = useState(word?.notes ?? "");
-  const [wordSetId, setWordSetId] = useState(word?.word_set_id ?? "");
-  const [isActive, setIsActive] = useState(word?.is_active ?? true);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [exampleHebrew, setExampleHebrew] = useState(
+    word?.exampleHebrew ?? ""
+  );
+  const [exampleEnglish, setExampleEnglish] = useState(
+    word?.exampleEnglish ?? ""
+  );
+  const [category, setCategory] = useState<WordCategory>(
+    word?.category ?? "Greetings"
+  );
+  const [difficulty, setDifficulty] = useState<Difficulty>(
+    word?.difficulty ?? "medium"
+  );
+  const [teacherNote, setTeacherNote] = useState(word?.teacherNote ?? "");
+  const [weeklyFocus, setWeeklyFocus] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  function validate() {
-    const errs: Record<string, string> = {};
-    if (!hebrew.trim()) errs.hebrew = "Hebrew word is required";
-    if (!english.trim()) errs.english = "English translation is required";
-    return errs;
-  }
-
-  async function handleSave(e: React.FormEvent) {
+  function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      return;
-    }
-
-    setSaving(true);
-    const payload = {
-      hebrew: hebrew.trim(),
-      transliteration: transliteration.trim() || null,
-      english: english.trim(),
-      notes: notes.trim() || null,
-      word_set_id: wordSetId || null,
-      is_active: isActive,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = isEditing
-      ? await supabase.from("words").update(payload).eq("id", word!.id)
-      : await supabase
-          .from("words")
-          .insert({ ...payload, created_by: teacherId });
-
-    setSaving(false);
-    if (error) {
-      setErrors({ _: "Couldn't save. Please try again." });
-    } else {
+    setSaved(true);
+    setTimeout(() => {
       router.push("/teacher/words");
-      router.refresh();
-    }
-  }
-
-  async function handleDelete() {
-    if (!word || !confirm("Delete this word? This can't be undone.")) return;
-    setDeleting(true);
-    await supabase.from("words").delete().eq("id", word.id);
-    router.push("/teacher/words");
-    router.refresh();
+    }, 1200);
   }
 
   return (
-    <form onSubmit={handleSave} className="flex flex-col gap-5">
-      {/* Hebrew — RTL input */}
-      <div>
-        <label
-          htmlFor="hebrew"
-          className="block text-lg font-medium text-gray-700 mb-2"
-        >
-          Hebrew word <span className="text-red-500">*</span>
+    <form onSubmit={handleSave} className="flex flex-col gap-8">
+      {/* Section A: Word */}
+      <FormSection label="A. The Word" icon="📝">
+        <Field label="Hebrew (with niqqud)">
+          <input
+            dir="rtl"
+            lang="he"
+            className="input-field text-2xl"
+            style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
+            value={hebrewNiqqud}
+            onChange={(e) => setHebrewNiqqud(e.target.value)}
+            placeholder="שָׁלוֹם"
+            required
+          />
+        </Field>
+        <Field label="Hebrew (without niqqud)">
+          <input
+            dir="rtl"
+            lang="he"
+            className="input-field text-xl"
+            style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
+            value={hebrewPlain}
+            onChange={(e) => setHebrewPlain(e.target.value)}
+            placeholder="שלום"
+          />
+        </Field>
+        <Field label="Transliteration">
+          <input
+            className="input-field"
+            value={transliteration}
+            onChange={(e) => setTransliteration(e.target.value)}
+            placeholder="shalom"
+            required
+          />
+        </Field>
+        <Field label="English meaning">
+          <input
+            className="input-field"
+            value={english}
+            onChange={(e) => setEnglish(e.target.value)}
+            placeholder="hello, peace, goodbye"
+            required
+          />
+        </Field>
+      </FormSection>
+
+      {/* Section B: Usage */}
+      <FormSection label="B. Usage" icon="💬">
+        <Field label="Hebrew example sentence">
+          <textarea
+            dir="rtl"
+            lang="he"
+            className="input-field text-lg resize-none"
+            style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
+            rows={2}
+            value={exampleHebrew}
+            onChange={(e) => setExampleHebrew(e.target.value)}
+            placeholder="שָׁלוֹם, מַה שְּׁלוֹמְךָ?"
+          />
+        </Field>
+        <Field label="English translation of example">
+          <input
+            className="input-field"
+            value={exampleEnglish}
+            onChange={(e) => setExampleEnglish(e.target.value)}
+            placeholder="Hello, how are you?"
+          />
+        </Field>
+        <Field label="Category">
+          <select
+            className="input-field"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as WordCategory)}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </FormSection>
+
+      {/* Section C: Teacher support */}
+      <FormSection label="C. Teacher Notes" icon="👩‍🏫">
+        <Field label="Note for Larry">
+          <textarea
+            className="input-field resize-none"
+            rows={3}
+            value={teacherNote}
+            onChange={(e) => setTeacherNote(e.target.value)}
+            placeholder="An interesting connection or tip to help Larry remember..."
+          />
+        </Field>
+        <Field label="Difficulty">
+          <div className="flex gap-3">
+            {(["easy", "medium", "hard"] as Difficulty[]).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDifficulty(d)}
+                className={`flex-1 py-3 rounded-xl text-base font-medium transition-colors capitalize border-2 ${
+                  difficulty === d
+                    ? d === "easy"
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                      : d === "medium"
+                      ? "border-amber-400 bg-amber-50 text-amber-700"
+                      : "border-rose-400 bg-rose-50 text-rose-700"
+                    : "border-gray-200 bg-white text-gray-500"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <label className="flex items-center gap-3 cursor-pointer py-1">
+          <input
+            type="checkbox"
+            checked={weeklyFocus}
+            onChange={(e) => setWeeklyFocus(e.target.checked)}
+            className="w-5 h-5 rounded accent-sky-500"
+          />
+          <span className="text-base text-gray-700">
+            Add to this week&rsquo;s focus words
+          </span>
         </label>
-        <input
-          id="hebrew"
-          dir="rtl"
-          lang="he"
-          className={`w-full px-4 py-3 text-2xl bg-white border-2 rounded-xl font-hebrew focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-colors ${
-            errors.hebrew ? "border-red-400 bg-red-50" : "border-gray-200"
-          }`}
-          value={hebrew}
-          onChange={(e) => setHebrew(e.target.value)}
-          placeholder="לשון"
-          style={{ fontFamily: "var(--font-hebrew)" }}
-        />
-        {errors.hebrew && (
-          <p className="mt-1 text-base text-red-600">{errors.hebrew}</p>
-        )}
-      </div>
+      </FormSection>
 
-      {/* Transliteration */}
-      <div>
-        <label
-          htmlFor="translit"
-          className="block text-lg font-medium text-gray-700 mb-2"
-        >
-          Transliteration{" "}
-          <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-        <Input
-          id="translit"
-          value={transliteration}
-          onChange={(e) => setTransliteration(e.target.value)}
-          placeholder="lashon"
-        />
-      </div>
+      {/* Section D: Audio */}
+      <FormSection label="D. Audio" icon="🔊">
+        <div className="bg-gray-50 rounded-2xl p-5 border-2 border-dashed border-gray-200 text-center">
+          <p className="text-gray-400 text-base">
+            Audio upload — coming soon
+          </p>
+          <p className="text-gray-300 text-sm mt-1">
+            You&rsquo;ll be able to record or upload a pronunciation clip here
+          </p>
+        </div>
+      </FormSection>
 
-      {/* English */}
-      <div>
-        <label
-          htmlFor="english"
-          className="block text-lg font-medium text-gray-700 mb-2"
-        >
-          English translation <span className="text-red-500">*</span>
-        </label>
-        <Input
-          id="english"
-          value={english}
-          onChange={(e) => setEnglish(e.target.value)}
-          placeholder="language"
-          error={errors.english}
-        />
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label
-          htmlFor="notes"
-          className="block text-lg font-medium text-gray-700 mb-2"
-        >
-          Notes for Larry{" "}
-          <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-        <textarea
-          id="notes"
-          className="w-full px-4 py-3 text-lg bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-colors resize-none"
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="e.g. used in everyday greetings"
-        />
-      </div>
-
-      {/* Word set */}
-      <div>
-        <label
-          htmlFor="wordSet"
-          className="block text-lg font-medium text-gray-700 mb-2"
-        >
-          Lesson{" "}
-          <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-        <select
-          id="wordSet"
-          className="w-full px-4 py-3 text-lg bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-colors min-h-[48px]"
-          value={wordSetId}
-          onChange={(e) => setWordSetId(e.target.value)}
-        >
-          <option value="">No lesson</option>
-          {wordSets.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Active toggle */}
-      <label className="flex items-center gap-3 cursor-pointer py-2">
-        <input
-          type="checkbox"
-          checked={isActive}
-          onChange={(e) => setIsActive(e.target.checked)}
-          className="w-6 h-6 rounded accent-sky-500"
-        />
-        <span className="text-lg text-gray-700">
-          Active (shown to Larry during practice)
-        </span>
-      </label>
-
-      {errors._ && (
-        <p className="text-base text-red-600 bg-red-50 rounded-xl px-4 py-3">
-          {errors._}
-        </p>
-      )}
-
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" loading={saving} size="xl">
-          {isEditing ? "Save changes" : "Add word"}
-        </Button>
-      </div>
-
-      {isEditing && (
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-base text-red-500 hover:underline text-center py-2 disabled:opacity-50"
-        >
-          {deleting ? "Deleting…" : "Delete this word"}
-        </button>
-      )}
+      {/* Save button */}
+      <button
+        type="submit"
+        disabled={saved}
+        className="w-full bg-sky-500 hover:bg-sky-600 active:bg-sky-700 disabled:bg-emerald-500 text-white text-xl font-semibold py-5 rounded-2xl transition-colors min-h-[64px]"
+      >
+        {saved ? "✓  Saved!" : isEditing ? "Save changes" : "Add word"}
+      </button>
     </form>
+  );
+}
+
+function FormSection({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-lg" aria-hidden>
+          {icon}
+        </span>
+        <h3 className="text-base font-semibold text-gray-500 uppercase tracking-wider">
+          {label}
+        </h3>
+      </div>
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col gap-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-gray-600">{label}</label>
+      {children}
+    </div>
   );
 }

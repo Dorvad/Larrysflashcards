@@ -1,123 +1,141 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { TopBar } from "@/components/layout/TopBar";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import type { Profile, Word, WordSet } from "@/types/database";
+import { Search, Plus } from "lucide-react";
+import { WORDS } from "@/lib/mock-data";
+import StatusBadge from "@/components/shared/StatusBadge";
+import HebrewText from "@/components/shared/HebrewText";
+import EmptyState from "@/components/shared/EmptyState";
+import type { WordCategory, WordStatus, Difficulty } from "@/types";
 
-export default async function ManageWordsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+type StatusFilter = "All" | WordStatus;
+type CategoryFilter = "All" | WordCategory;
+type DifficultyFilter = "All" | Difficulty;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-  if (!profile || profile.role !== "teacher") redirect("/practice");
+const STATUS_OPTIONS: StatusFilter[] = ["All", "new", "practicing", "strong", "mastered"];
 
-  const { data: words } = await supabase
-    .from("words")
-    .select("*, word_set:word_sets(*)")
-    .order("word_set_id", { ascending: true })
-    .order("sort_order")
-    .returns<(Word & { word_set: WordSet | null })[]>();
+export default function WordsPage() {
+  const [query, setQuery] = useState("");
+  const [activeStatus, setActiveStatus] = useState<StatusFilter>("All");
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("All");
+  const [activeDifficulty, setActiveDifficulty] = useState<DifficultyFilter>("All");
 
-  const { data: wordSets } = await supabase
-    .from("word_sets")
-    .select("*")
-    .order("sort_order")
-    .returns<WordSet[]>();
-
-  const setMap = Object.fromEntries((wordSets ?? []).map((s) => [s.id, s]));
+  const filteredWords = useMemo(() => {
+    return WORDS.filter((word) => {
+      const q = query.toLowerCase();
+      const matchesQuery =
+        !q ||
+        word.english.toLowerCase().includes(q) ||
+        word.transliteration.toLowerCase().includes(q) ||
+        word.hebrewNiqqud.includes(q) ||
+        word.hebrewPlain.includes(q);
+      const matchesStatus = activeStatus === "All" || word.status === activeStatus;
+      const matchesCategory = activeCategory === "All" || word.category === activeCategory;
+      const matchesDifficulty = activeDifficulty === "All" || word.difficulty === activeDifficulty;
+      return matchesQuery && matchesStatus && matchesCategory && matchesDifficulty;
+    });
+  }, [query, activeStatus, activeCategory, activeDifficulty]);
 
   return (
-    <div className="min-h-screen bg-cream">
-      <TopBar profile={profile} backHref="/teacher" title="Manage words" />
+    <div>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Words</h1>
+        <Link
+          href="/teacher/words/new"
+          className="bg-sky-500 hover:bg-sky-600 text-white rounded-xl px-4 py-2 flex items-center gap-1.5 text-base font-semibold transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Add word
+        </Link>
+      </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-lg text-gray-500">
-            {(words ?? []).length} words total
-          </p>
-          <Link href="/teacher/words/new">
-            <Button size="md" variant="primary">
-              + Add word
-            </Button>
-          </Link>
-        </div>
+      {/* Search bar */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search words..."
+          className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-300 shadow-sm"
+        />
+      </div>
 
-        <div className="flex flex-col gap-3">
-          {(words ?? []).map((word) => (
-            <Link key={word.id} href={`/teacher/words/${word.id}`}>
-              <div
-                className={`bg-white rounded-2xl shadow-card px-5 py-4 flex items-center gap-4 hover:shadow-card-hover transition-shadow ${
-                  !word.is_active ? "opacity-50" : ""
-                }`}
-              >
-                {/* Hebrew */}
-                <div className="w-28 shrink-0 text-right">
-                  <p
-                    className="hebrew text-gray-800"
-                    lang="he"
-                    dir="rtl"
-                  >
-                    {word.hebrew}
-                  </p>
-                </div>
+      {/* Filter chips */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {STATUS_OPTIONS.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setActiveStatus(s)}
+            className={`rounded-full px-4 py-2 text-sm font-medium cursor-pointer transition-colors capitalize ${
+              activeStatus === s
+                ? "bg-sky-500 text-white"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-lg font-medium text-gray-800">
-                    {word.english}
-                  </p>
-                  {word.transliteration && (
-                    <p className="text-base text-gray-400 italic">
-                      {word.transliteration}
-                    </p>
-                  )}
-                </div>
+      {/* Results count */}
+      <p className="text-sm text-gray-400 mb-3">{filteredWords.length} words</p>
 
-                {word.word_set_id && setMap[word.word_set_id] && (
-                  <Badge color={setMap[word.word_set_id].color}>
-                    {setMap[word.word_set_id].name}
-                  </Badge>
-                )}
-
-                <svg
-                  className="shrink-0 text-gray-300"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
+      {/* Word list */}
+      {filteredWords.length === 0 ? (
+        <EmptyState
+          emoji="🔍"
+          title="No words found"
+          description="Try clearing some filters"
+        />
+      ) : (
+        <div>
+          {filteredWords.map((word) => (
+            <div
+              key={word.id}
+              className="bg-white rounded-xl mb-2 px-5 py-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow"
+            >
+              {/* Hebrew */}
+              <div className="w-32 shrink-0 text-right">
+                <HebrewText size="sm" className="text-gray-900">
+                  {word.hebrewNiqqud}
+                </HebrewText>
               </div>
-            </Link>
+
+              {/* Transliteration */}
+              <p className="w-28 shrink-0 text-sm text-gray-400 italic hidden sm:block">
+                {word.transliteration}
+              </p>
+
+              {/* English */}
+              <p className="flex-1 text-base font-medium text-gray-800 min-w-0 truncate">
+                {word.english}
+              </p>
+
+              {/* Category */}
+              <span className="hidden md:inline-block text-xs bg-gray-50 rounded-full px-3 py-1 text-gray-500 shrink-0">
+                {word.category}
+              </span>
+
+              {/* Status badge */}
+              <div className="shrink-0">
+                <StatusBadge status={word.status} />
+              </div>
+
+              {/* Edit link */}
+              <Link
+                href={`/teacher/words/${word.id}/edit`}
+                className="shrink-0 text-sm text-sky-600 hover:underline"
+              >
+                Edit
+              </Link>
+            </div>
           ))}
         </div>
-
-        {(words ?? []).length === 0 && (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-2xl mb-3">📝</p>
-            <p className="text-lg">No words yet.</p>
-            <Link href="/teacher/words/new">
-              <Button variant="primary" size="lg" className="mt-6">
-                Add the first word
-              </Button>
-            </Link>
-          </div>
-        )}
-      </main>
+      )}
     </div>
   );
 }

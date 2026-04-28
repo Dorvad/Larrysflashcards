@@ -1,181 +1,257 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { TopBar } from "@/components/layout/TopBar";
-import { Card } from "@/components/ui/Card";
-import { formatDuration, scoreLabel } from "@/lib/utils";
-import type { Profile, SessionSummary, WordStats } from "@/types/database";
+import {
+  WORDS,
+  PRACTICE_SESSIONS,
+  getWeakWords,
+  PROGRESS_STATS,
+  NEXT_LESSON_SUGGESTIONS,
+} from "@/lib/mock-data";
+import StatusBadge from "@/components/shared/StatusBadge";
+import HebrewText from "@/components/shared/HebrewText";
+import type { WordCategory } from "@/types";
 
-export default async function ProgressPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+// ─── Vocabulary breakdown config ─────────────────────────────────────────────
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
-  if (!profile || profile.role !== "teacher") redirect("/practice");
+const BREAKDOWN_ROWS: {
+  key: "new" | "practicing" | "strong" | "mastered";
+  label: string;
+  dotColor: string;
+  barColor: string;
+}[] = [
+  { key: "new", label: "New", dotColor: "bg-sky-400", barColor: "bg-sky-400" },
+  {
+    key: "practicing",
+    label: "Practicing",
+    dotColor: "bg-amber-400",
+    barColor: "bg-amber-400",
+  },
+  {
+    key: "strong",
+    label: "Strong",
+    dotColor: "bg-violet-400",
+    barColor: "bg-violet-400",
+  },
+  {
+    key: "mastered",
+    label: "Mastered",
+    dotColor: "bg-emerald-400",
+    barColor: "bg-emerald-400",
+  },
+];
 
-  const [{ data: sessions }, { data: wordStats }] = await Promise.all([
-    supabase
-      .from("session_summary")
-      .select("*")
-      .order("started_at", { ascending: false })
-      .limit(30)
-      .returns<SessionSummary[]>(),
-    supabase
-      .from("word_stats")
-      .select("*")
-      .gt("total_attempts", 0)
-      .order("accuracy_pct", { ascending: true })
-      .limit(10)
-      .returns<WordStats[]>(),
-  ]);
+// ─── Category grouping ────────────────────────────────────────────────────────
 
-  const avgScore =
-    sessions && sessions.length > 0
-      ? Math.round(
-          sessions
-            .filter((s) => s.score_pct !== null)
-            .reduce((sum, s) => sum + (s.score_pct ?? 0), 0) /
-            sessions.filter((s) => s.score_pct !== null).length
-        )
-      : null;
+function getCategoryCounts(): { category: WordCategory; count: number }[] {
+  const counts = new Map<WordCategory, number>();
+  for (const word of WORDS) {
+    counts.set(word.category, (counts.get(word.category) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count);
+}
 
-  const hardestWords = (wordStats ?? []).filter(
-    (w) => w.accuracy_pct !== null && w.accuracy_pct < 70
-  );
+// ─── Strength dots helper ─────────────────────────────────────────────────────
 
+function StrengthDots({ strength }: { strength: number }) {
   return (
-    <div className="min-h-screen bg-cream">
-      <TopBar
-        profile={profile}
-        backHref="/teacher"
-        title="Larry's progress"
-      />
-
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        {/* Summary stats */}
-        {sessions && sessions.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            <SummaryCard
-              label="Sessions"
-              value={String(sessions.length)}
-              note="last 30"
-            />
-            <SummaryCard
-              label="Average score"
-              value={avgScore !== null ? `${avgScore}%` : "—"}
-              note={avgScore !== null ? scoreLabel(avgScore) : undefined}
-            />
-          </div>
-        )}
-
-        {/* Words that need more practice */}
-        {hardestWords.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">
-              Needs more practice
-            </h2>
-            <div className="flex flex-col gap-2">
-              {hardestWords.map((w) => (
-                <div
-                  key={w.word_id}
-                  className="bg-white rounded-2xl px-5 py-4 flex items-center justify-between shadow-card"
-                >
-                  <div>
-                    <p
-                      className="hebrew text-gray-800"
-                      lang="he"
-                      dir="rtl"
-                    >
-                      {w.hebrew}
-                    </p>
-                    <p className="text-base text-gray-500">{w.english}</p>
-                  </div>
-                  <span className="text-xl font-bold text-red-500">
-                    {w.accuracy_pct ?? 0}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* All sessions */}
-        <section>
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">
-            Session history
-          </h2>
-
-          {(sessions ?? []).length === 0 ? (
-            <p className="text-center text-gray-400 text-lg py-8">
-              Larry hasn&rsquo;t practised yet.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {(sessions ?? []).map((s) => (
-                <Card key={s.id}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-lg font-semibold text-gray-800">
-                        {s.word_set_name ?? "All words"}
-                      </p>
-                      <p className="text-base text-gray-500 mt-0.5">
-                        {new Date(s.started_at).toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                        {s.duration_seconds !== null &&
-                          ` · ${formatDuration(s.duration_seconds)}`}
-                      </p>
-                      <p className="text-base text-gray-500 mt-0.5">
-                        {s.correct_count} correct · {s.skipped_count} skipped
-                        · {s.total_cards} total
-                      </p>
-                    </div>
-                    {s.score_pct !== null && (
-                      <span
-                        className={`text-2xl font-bold shrink-0 ${
-                          s.score_pct >= 80
-                            ? "text-green-500"
-                            : s.score_pct >= 60
-                            ? "text-yellow-500"
-                            : "text-red-500"
-                        }`}
-                      >
-                        {s.score_pct}%
-                      </span>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
+    <div className="flex items-center gap-0.5" aria-label={`Strength: ${strength} of 5`}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <span
+          key={i}
+          className={`inline-block w-2.5 h-2.5 rounded-full ${
+            i < strength ? "bg-sky-400" : "bg-gray-200"
+          }`}
+        />
+      ))}
     </div>
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  note,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-}) {
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function ProgressPage() {
+  const weakWords = getWeakWords();
+  const categoryCounts = getCategoryCounts();
+  const total = PROGRESS_STATS.total;
+
+  const breakdownCounts: Record<string, number> = {
+    new: PROGRESS_STATS.newWords,
+    practicing: PROGRESS_STATS.practicing,
+    strong: PROGRESS_STATS.strong,
+    mastered: PROGRESS_STATS.mastered,
+  };
+
   return (
-    <div className="bg-white rounded-3xl shadow-card p-5">
-      <p className="text-3xl font-bold text-gray-800">{value}</p>
-      <p className="text-base text-gray-500 mt-1">{label}</p>
-      {note && <p className="text-sm text-gray-400 mt-0.5">{note}</p>}
+    <div>
+      {/* Header */}
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Larry&rsquo;s Progress</h1>
+      <p className="text-base text-gray-500 mb-6">
+        A picture of how Larry&rsquo;s Hebrew is growing.
+      </p>
+
+      {/* 1. Summary stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryCard value={PROGRESS_STATS.total} label="Words" />
+        <SummaryCard value={PROGRESS_STATS.mastered} label="Mastered" />
+        <SummaryCard value={PROGRESS_STATS.practicing} label="Practicing" />
+        <SummaryCard value={PROGRESS_STATS.newWords} label="New" />
+      </div>
+
+      {/* 2. Vocabulary breakdown */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">Vocabulary breakdown</h2>
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          {BREAKDOWN_ROWS.map((row) => {
+            const count = breakdownCounts[row.key];
+            const pct = total > 0 ? (count / total) * 100 : 0;
+            return (
+              <div key={row.key} className="flex items-center gap-3 mb-3 last:mb-0">
+                <span className={`w-3 h-3 rounded-full shrink-0 ${row.dotColor}`} />
+                <span className="text-base text-gray-700 font-medium w-24 shrink-0 capitalize">
+                  {row.label}
+                </span>
+                <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${row.barColor}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="text-base font-semibold text-gray-800 w-8 text-right shrink-0">
+                  {count}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Weak words */}
+      {weakWords.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">
+            Words that need more practice
+          </h2>
+          {weakWords.map((word) => (
+            <div
+              key={word.id}
+              className="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm mb-2"
+            >
+              <HebrewText size="sm" className="shrink-0">
+                {word.hebrewNiqqud}
+              </HebrewText>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-medium text-gray-800">{word.english}</p>
+                <p className="text-sm text-gray-400 italic">{word.transliteration}</p>
+              </div>
+              <StrengthDots strength={word.strength} />
+              <div className="shrink-0">
+                <StatusBadge status={word.status} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 4. Category breakdown */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">Words by category</h2>
+        <div className="flex flex-wrap">
+          {categoryCounts.map(({ category, count }) => (
+            <span
+              key={category}
+              className="bg-white rounded-full px-4 py-2 text-sm font-medium shadow-sm inline-flex items-center gap-2 mr-2 mb-2"
+            >
+              {category}
+              <span className="bg-gray-100 rounded-full px-2 py-0.5 text-xs text-gray-500">
+                {count}
+              </span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. Suggested next lesson */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">
+          🎯 Suggested for next lesson
+        </h2>
+        <p className="text-sm text-gray-500 mb-3">
+          These words showed up repeatedly as difficult — worth reviewing together.
+        </p>
+        {NEXT_LESSON_SUGGESTIONS.map((word) => (
+          <div
+            key={word.id}
+            className="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm mb-2"
+          >
+            <HebrewText size="sm" className="shrink-0">
+              {word.hebrewNiqqud}
+            </HebrewText>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-medium text-gray-800">{word.english}</p>
+              <p className="text-sm text-gray-400 italic">{word.transliteration}</p>
+            </div>
+            <StrengthDots strength={word.strength} />
+          </div>
+        ))}
+      </div>
+
+      {/* 6. Recent sessions */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">Practice sessions</h2>
+        {PRACTICE_SESSIONS.map((session) => {
+          const knewPct = session.wordCount > 0
+            ? session.scores.knew / session.wordCount
+            : 0;
+          const formattedDate = new Date(session.date).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+          return (
+            <div
+              key={session.id}
+              className="bg-white rounded-2xl p-4 shadow-sm mb-2"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-base font-medium text-gray-800">
+                  {formattedDate} &middot; {session.wordCount} words
+                </p>
+                <p className="text-sm text-gray-400">{session.durationMinutes} min</p>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Knew:{" "}
+                <span className="text-emerald-600 font-medium">
+                  {session.scores.knew}
+                </span>{" "}
+                &middot; Almost:{" "}
+                <span className="text-amber-500 font-medium">
+                  {session.scores.almost}
+                </span>{" "}
+                &middot; Still learning:{" "}
+                <span className="text-rose-500 font-medium">
+                  {session.scores.forgot}
+                </span>
+              </p>
+              {/* Progress bar */}
+              <div className="mt-3 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-400 rounded-full transition-all"
+                  style={{ width: `${knewPct * 100}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow-sm">
+      <p className="text-3xl font-bold text-gray-900">{value}</p>
+      <p className="text-sm text-gray-500 mt-0.5">{label}</p>
     </div>
   );
 }
