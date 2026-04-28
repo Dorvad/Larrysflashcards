@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Volume2 } from "lucide-react";
-import { HebrewText } from "@/components/shared/HebrewText";
+import HebrewText from "@/components/shared/HebrewText";
 import type { Word, CardResponse } from "@/types";
 
 interface PracticeCardProps {

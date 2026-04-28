@@ -11,13 +11,13 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    // Lazy-initialise so server pre-render never touches the Supabase client
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
