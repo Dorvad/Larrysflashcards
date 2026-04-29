@@ -21,7 +21,7 @@ function getDateLabel() {
 }
 
 interface StudentData {
-  allWords: Word[];
+  dueCount: number;
   recentlyAdded: Word[];
 }
 
@@ -31,29 +31,41 @@ async function loadStudentData(): Promise<StudentData> {
   );
 
   if (!configured) {
-    return { allWords: getDueToday(), recentlyAdded: getRecentlyAdded() };
+    return { dueCount: getDueToday().length, recentlyAdded: getRecentlyAdded() };
   }
 
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("words")
-      .select("*")
-      .eq("is_active", true)
-      .eq("is_pending_approval", false)
-      .order("created_at", { ascending: false });
+    const now = new Date().toISOString();
 
-    const words = (data ?? []).map(dbWordToWord);
-    return { allWords: words, recentlyAdded: words.slice(0, 8) };
+    const [dueRes, recentRes] = await Promise.all([
+      supabase
+        .from("words")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .or(`next_review_at.is.null,next_review_at.lte.${now}`),
+      supabase
+        .from("words")
+        .select("*")
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
+
+    return {
+      dueCount: dueRes.count ?? 0,
+      recentlyAdded: (recentRes.data ?? []).map(dbWordToWord),
+    };
   } catch {
-    return { allWords: getDueToday(), recentlyAdded: getRecentlyAdded() };
+    return { dueCount: getDueToday().length, recentlyAdded: getRecentlyAdded() };
   }
 }
 
 export default async function StudentHomePage() {
-  const { allWords, recentlyAdded } = await loadStudentData();
-  const count = allWords.length;
+  const { dueCount: count, recentlyAdded } = await loadStudentData();
 
   return (
     <div className="min-h-screen">
