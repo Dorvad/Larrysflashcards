@@ -9,45 +9,47 @@ export default function StudentHomePage() {
   return (
     <div className="bg-[#F7F5F0] min-h-screen flex flex-col">
       {/* Greeting */}
-      <div className="px-5 pt-10 pb-2">
-        <h1 className="text-3xl font-bold text-gray-900 leading-tight">
+      <div className="px-5 pt-8 pb-2">
+        <h2 className="text-3xl font-bold text-gray-900 leading-tight">
           Hello, Larry.
-        </h1>
-        <p className="text-xl text-gray-500 mt-1">
+        </h2>
+        <p className="text-lg text-gray-500 mt-1">
           {count > 0
-            ? `You have ${count} word${count === 1 ? "" : "s"} to practice today.`
+            ? `${count} word${count === 1 ? "" : "s"} ready to practice.`
             : "You're all caught up for today."}
         </p>
       </div>
 
-      {/* Practice CTA — the main action */}
+      {/* Primary CTA */}
       <div className="px-5 mt-6">
         <Link
           href="/student/practice"
-          className="block w-full bg-sky-500 hover:bg-sky-600 active:bg-sky-700 active:scale-[0.98] text-white text-2xl font-bold text-center py-6 rounded-3xl shadow-lg transition-all duration-150"
+          className="block w-full bg-sky-500 active:bg-sky-700 active:scale-[0.98] text-white text-2xl font-bold text-center py-7 rounded-3xl shadow-lg transition-all duration-150"
         >
           Start Practice
-        </Link>
-        <Link
-          href="/student/words"
-          className="block w-full text-center text-sky-600 font-semibold text-base mt-4 py-3 rounded-2xl hover:bg-sky-50 transition-colors"
-        >
-          Browse my words
         </Link>
       </div>
 
       {/* New this week */}
       {recentlyAdded.length > 0 && (
         <div className="px-5 mt-10">
-          <h2 className="text-base font-semibold text-gray-400 uppercase tracking-wide mb-4">
-            New this week
-          </h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+          <div className="flex items-baseline justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
+              New this week
+            </h3>
+            <Link
+              href="/student/words"
+              className="text-sm text-sky-600 font-medium"
+            >
+              See all
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 snap-x snap-mandatory">
             {recentlyAdded.map((word) => (
               <Link
                 key={word.id}
                 href={`/student/words/${word.id}`}
-                className="bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 shrink-0 block active:scale-[0.97] transition-transform"
+                className="bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 shrink-0 block active:scale-[0.97] transition-transform snap-start min-w-[120px]"
               >
                 <p
                   dir="rtl"
@@ -57,7 +59,7 @@ export default function StudentHomePage() {
                 >
                   {word.hebrewNiqqud}
                 </p>
-                <p className="text-sm text-gray-500 mt-1 text-center">
+                <p className="text-sm text-gray-500 mt-1.5 text-center leading-tight">
                   {word.english}
                 </p>
               </Link>
@@ -66,12 +68,13 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      {/* Spacer + teacher link at very bottom */}
       <div className="flex-1" />
-      <div className="text-center py-10 mt-4">
+
+      {/* Teacher access — intentionally low-contrast */}
+      <div className="text-center py-8">
         <Link
           href="/teacher"
-          className="text-xs text-gray-300 hover:text-gray-400 transition-colors"
+          className="text-xs text-gray-300 active:text-gray-500 transition-colors"
         >
           Teacher view
         </Link>

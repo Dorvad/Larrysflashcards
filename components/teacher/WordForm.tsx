@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { createWord, updateWord } from "@/app/actions/words";
 import { AudioUploader } from "./AudioUploader";
 import { ImageUploader } from "./ImageUploader";
@@ -25,7 +24,6 @@ interface WordFormProps {
 }
 
 export function WordForm({ word }: WordFormProps) {
-  const router = useRouter();
   const isEditing = Boolean(word);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -103,8 +101,9 @@ export function WordForm({ word }: WordFormProps) {
       setError(result.error);
       setSaving(false);
     } else {
-      router.push("/teacher/words");
-      router.refresh();
+      // Hard navigation so the server component re-fetches fresh data
+      // (soft router.push may serve a cached render before revalidatePath propagates)
+      window.location.href = "/teacher/words";
     }
   }
 

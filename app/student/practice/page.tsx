@@ -5,7 +5,6 @@ import Link from "next/link";
 import { getDueToday } from "@/lib/mock-data";
 import { PracticeCard } from "@/components/student/PracticeCard";
 import type { CardResponse, Word } from "@/types";
-import { ArrowLeft } from "lucide-react";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const shuffled = [...arr];
@@ -62,19 +61,8 @@ export default function PracticePage() {
 
     return (
       <div className="bg-[#F7F5F0]">
-        {/* Top bar */}
-        <div className="px-4 pt-5 pb-1 flex items-center max-w-lg mx-auto">
-          <Link
-            href="/student"
-            className="flex items-center gap-2 text-gray-400 min-h-[48px] pr-6"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-base">Stop</span>
-          </Link>
-        </div>
-
         {/* Card — key triggers slide-in animation on every new word */}
-        <div key={currentIndex} className="px-4 pb-6 animate-card-enter">
+        <div key={currentIndex} className="px-4 pt-4 pb-6 animate-card-enter">
           <PracticeCard
             word={currentWord}
             cardNumber={currentIndex + 1}

@@ -1,4 +1,5 @@
 import BottomNav from "@/components/student/BottomNav";
+import { StudentTopBar } from "@/components/student/StudentTopBar";
 
 export default function StudentLayout({
   children,
@@ -7,12 +8,15 @@ export default function StudentLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col">
+      <StudentTopBar />
+
       {/*
-        Bottom nav is visible up to xl (1280px).
-        pb-24 reserves space below content so nothing hides behind the fixed nav.
-        xl: no nav, reduce bottom padding and widen the content column.
+        pt-14  = space for fixed top bar (56px)
+        pb-24  = space for fixed bottom nav
+        xl:pb-12 = desktop: no bottom nav
+        Content column is capped and centred on wider screens.
       */}
-      <main className="flex-1 pb-24 xl:pb-12 md:max-w-xl md:mx-auto md:w-full lg:max-w-2xl xl:max-w-3xl">
+      <main className="flex-1 pt-14 pb-24 xl:pb-12 md:max-w-xl md:mx-auto md:w-full lg:max-w-2xl xl:max-w-3xl">
         {children}
       </main>
 

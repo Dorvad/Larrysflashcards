@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Search,
-  ArrowLeft,
   MessageCircle,
   UtensilsCrossed,
   Home,
@@ -201,26 +200,13 @@ export default function WordsPage() {
 
   return (
     <div className="bg-[#F7F5F0] min-h-screen relative">
-      {/* Header */}
-      <div className="px-4 pt-8 pb-4 flex items-center gap-3">
-        {selectedCategory && !isSearching ? (
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className="flex items-center gap-2 min-h-[48px] text-gray-500 pr-2"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-        ) : null}
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {selectedCategory && !isSearching ? selectedCategory : "My Words"}
-          </h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {isSearching || selectedCategory
-              ? `${filteredWords.length} words`
-              : `${WORDS.length} Hebrew words across ${categories.length} topics`}
-          </p>
-        </div>
+      {/* Sub-header: shown when inside a category or searching */}
+      <div className="px-4 pt-4 pb-2">
+        <p className="text-sm text-gray-400">
+          {isSearching || selectedCategory
+            ? `${filteredWords.length} words`
+            : `${WORDS.length} words across ${categories.length} topics`}
+        </p>
       </div>
 
       {/* Search bar */}

@@ -1,12 +1,12 @@
 "use client";
 
-import { use, useState, useRef } from "react";
-import { notFound, useRouter } from "next/navigation";
+import { useState, useRef } from "react";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getWordById } from "@/lib/mock-data";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
-import { Volume2, Play, Pause, ArrowLeft, Star } from "lucide-react";
+import { Volume2, Play, Pause, Star } from "lucide-react";
 
 function AudioButton({
   url,
@@ -56,18 +56,7 @@ export default function WordDetailPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="bg-[#F7F5F0] min-h-screen">
-      {/* Back nav */}
-      <div className="px-4 pt-5 pb-1">
-        <Link
-          href="/student/words"
-          className="inline-flex items-center gap-2 text-gray-500 min-h-[48px]"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="text-base font-medium">My Words</span>
-        </Link>
-      </div>
-
-      <div className="px-4 pt-2 pb-10 flex flex-col gap-4 max-w-lg mx-auto">
+      <div className="px-4 pt-4 pb-10 flex flex-col gap-4 max-w-lg mx-auto">
         {/* Hero card */}
         <div className="bg-white rounded-3xl shadow-md overflow-hidden">
           {/* Image */}
