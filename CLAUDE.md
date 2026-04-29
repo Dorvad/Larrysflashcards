@@ -15,9 +15,9 @@ A private Hebrew vocabulary practice app for Larry (student, 70s) and Dor (his t
 ## Running locally
 
 ```bash
-cp .env.local.example .env.local   # fill in Supabase credentials
+cp .env.example .env.local   # fill in Supabase credentials
 npm install
-npm run dev                         # http://localhost:3000
+npm run dev                   # http://localhost:3000
 ```
 
 ## Database setup
