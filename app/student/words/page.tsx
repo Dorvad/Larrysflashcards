@@ -87,10 +87,10 @@ export default function WordsPage() {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap border transition-colors min-h-[40px] ${
+            className={`rounded-full px-4 py-2.5 text-sm font-medium whitespace-nowrap border transition-colors min-h-[44px] active:scale-[0.97] ${
               activeCategory === cat
                 ? "bg-sky-500 text-white border-sky-500"
-                : "bg-white text-gray-600 border-gray-200"
+                : "bg-white text-gray-600 border-gray-200 active:bg-gray-100"
             }`}
           >
             {cat}
@@ -104,10 +104,10 @@ export default function WordsPage() {
           <button
             key={status}
             onClick={() => setActiveStatus(status)}
-            className={`rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap border transition-colors min-h-[40px] ${
+            className={`rounded-full px-4 py-2.5 text-sm font-medium whitespace-nowrap border transition-colors min-h-[44px] active:scale-[0.97] ${
               activeStatus === status
                 ? "bg-sky-500 text-white border-sky-500"
-                : "bg-white text-gray-600 border-gray-200"
+                : "bg-white text-gray-600 border-gray-200 active:bg-gray-100"
             }`}
           >
             {STATUS_LABELS[status]}

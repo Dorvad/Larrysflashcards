@@ -8,7 +8,7 @@ export default function NewWordPage() {
       {/* Back link */}
       <Link
         href="/teacher/words"
-        className="inline-flex items-center gap-2 text-base text-gray-500 hover:text-gray-700 mb-6"
+        className="inline-flex items-center gap-2 text-base text-gray-500 min-h-[48px] mb-6 -ml-1 px-1"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to words

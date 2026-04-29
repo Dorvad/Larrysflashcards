@@ -27,22 +27,12 @@ export function WordForm({ word }: WordFormProps) {
 
   const [hebrewNiqqud, setHebrewNiqqud] = useState(word?.hebrewNiqqud ?? "");
   const [hebrewPlain, setHebrewPlain] = useState(word?.hebrewPlain ?? "");
-  const [transliteration, setTransliteration] = useState(
-    word?.transliteration ?? ""
-  );
+  const [transliteration, setTransliteration] = useState(word?.transliteration ?? "");
   const [english, setEnglish] = useState(word?.english ?? "");
-  const [exampleHebrew, setExampleHebrew] = useState(
-    word?.exampleHebrew ?? ""
-  );
-  const [exampleEnglish, setExampleEnglish] = useState(
-    word?.exampleEnglish ?? ""
-  );
-  const [category, setCategory] = useState<WordCategory>(
-    word?.category ?? "Greetings"
-  );
-  const [difficulty, setDifficulty] = useState<Difficulty>(
-    word?.difficulty ?? "medium"
-  );
+  const [exampleHebrew, setExampleHebrew] = useState(word?.exampleHebrew ?? "");
+  const [exampleEnglish, setExampleEnglish] = useState(word?.exampleEnglish ?? "");
+  const [category, setCategory] = useState<WordCategory>(word?.category ?? "Greetings");
+  const [difficulty, setDifficulty] = useState<Difficulty>(word?.difficulty ?? "medium");
   const [teacherNote, setTeacherNote] = useState(word?.teacherNote ?? "");
   const [weeklyFocus, setWeeklyFocus] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -57,9 +47,9 @@ export function WordForm({ word }: WordFormProps) {
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-8">
-      {/* Section A: Word */}
-      <FormSection label="A. The Word" icon="📝">
-        <Field label="Hebrew (with niqqud)">
+      {/* Section: The Word */}
+      <FormSection label="The Word">
+        <Field label="Hebrew with niqqud (vowel marks)" required>
           <input
             dir="rtl"
             lang="he"
@@ -71,7 +61,7 @@ export function WordForm({ word }: WordFormProps) {
             required
           />
         </Field>
-        <Field label="Hebrew (without niqqud)">
+        <Field label="Hebrew without niqqud">
           <input
             dir="rtl"
             lang="he"
@@ -82,7 +72,7 @@ export function WordForm({ word }: WordFormProps) {
             placeholder="שלום"
           />
         </Field>
-        <Field label="Transliteration">
+        <Field label="Transliteration" required>
           <input
             className="input-field"
             value={transliteration}
@@ -91,7 +81,7 @@ export function WordForm({ word }: WordFormProps) {
             required
           />
         </Field>
-        <Field label="English meaning">
+        <Field label="English meaning" required>
           <input
             className="input-field"
             value={english}
@@ -102,8 +92,8 @@ export function WordForm({ word }: WordFormProps) {
         </Field>
       </FormSection>
 
-      {/* Section B: Usage */}
-      <FormSection label="B. Usage" icon="💬">
+      {/* Section: Usage */}
+      <FormSection label="Usage Example">
         <Field label="Hebrew example sentence">
           <textarea
             dir="rtl"
@@ -139,15 +129,15 @@ export function WordForm({ word }: WordFormProps) {
         </Field>
       </FormSection>
 
-      {/* Section C: Teacher support */}
-      <FormSection label="C. Teacher Notes" icon="👩‍🏫">
+      {/* Section: Teacher Notes */}
+      <FormSection label="Teacher Notes">
         <Field label="Note for Larry">
           <textarea
             className="input-field resize-none"
             rows={3}
             value={teacherNote}
             onChange={(e) => setTeacherNote(e.target.value)}
-            placeholder="An interesting connection or tip to help Larry remember..."
+            placeholder="A tip or connection to help Larry remember this word..."
           />
         </Field>
         <Field label="Difficulty">
@@ -157,7 +147,7 @@ export function WordForm({ word }: WordFormProps) {
                 key={d}
                 type="button"
                 onClick={() => setDifficulty(d)}
-                className={`flex-1 py-3 rounded-xl text-base font-medium transition-colors capitalize border-2 ${
+                className={`flex-1 py-3.5 rounded-xl text-base font-medium transition-colors capitalize border-2 min-h-[52px] active:scale-[0.97] ${
                   difficulty === d
                     ? d === "easy"
                       ? "border-emerald-400 bg-emerald-50 text-emerald-700"
@@ -172,12 +162,13 @@ export function WordForm({ word }: WordFormProps) {
             ))}
           </div>
         </Field>
-        <label className="flex items-center gap-3 cursor-pointer py-1">
+        {/* Weekly focus toggle — large tap target */}
+        <label className="flex items-center gap-4 cursor-pointer py-2 min-h-[52px]">
           <input
             type="checkbox"
             checked={weeklyFocus}
             onChange={(e) => setWeeklyFocus(e.target.checked)}
-            className="w-5 h-5 rounded accent-sky-500"
+            className="w-6 h-6 rounded accent-sky-500"
           />
           <span className="text-base text-gray-700">
             Add to this week&rsquo;s focus words
@@ -185,25 +176,23 @@ export function WordForm({ word }: WordFormProps) {
         </label>
       </FormSection>
 
-      {/* Section D: Audio */}
-      <FormSection label="D. Audio" icon="🔊">
-        <div className="bg-gray-50 rounded-2xl p-5 border-2 border-dashed border-gray-200 text-center">
-          <p className="text-gray-400 text-base">
-            Audio upload — coming soon
-          </p>
-          <p className="text-gray-300 text-sm mt-1">
+      {/* Section: Audio */}
+      <FormSection label="Audio">
+        <div className="bg-gray-50 rounded-2xl p-6 border-2 border-dashed border-gray-200 text-center">
+          <p className="text-base text-gray-400">Audio upload — coming soon</p>
+          <p className="text-sm text-gray-300 mt-1">
             You&rsquo;ll be able to record or upload a pronunciation clip here
           </p>
         </div>
       </FormSection>
 
-      {/* Save button */}
+      {/* Save */}
       <button
         type="submit"
         disabled={saved}
-        className="w-full bg-sky-500 hover:bg-sky-600 active:bg-sky-700 disabled:bg-emerald-500 text-white text-xl font-semibold py-5 rounded-2xl transition-colors min-h-[64px]"
+        className="w-full bg-sky-500 active:bg-sky-700 disabled:bg-emerald-500 text-white text-xl font-semibold py-5 rounded-2xl transition-colors active:scale-[0.97] min-h-[64px]"
       >
-        {saved ? "✓  Saved!" : isEditing ? "Save changes" : "Add word"}
+        {saved ? "Saved!" : isEditing ? "Save changes" : "Add word"}
       </button>
     </form>
   );
@@ -211,24 +200,17 @@ export function WordForm({ word }: WordFormProps) {
 
 function FormSection({
   label,
-  icon,
   children,
 }: {
   label: string;
-  icon: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-lg" aria-hidden>
-          {icon}
-        </span>
-        <h3 className="text-base font-semibold text-gray-500 uppercase tracking-wider">
-          {label}
-        </h3>
-      </div>
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col gap-4">
+      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 px-1">
+        {label}
+      </h3>
+      <div className="bg-white rounded-2xl px-5 py-5 shadow-sm border border-gray-100 flex flex-col gap-5">
         {children}
       </div>
     </div>
@@ -237,14 +219,19 @@ function FormSection({
 
 function Field({
   label,
+  required,
   children,
 }: {
   label: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-gray-600">{label}</label>
+    <div className="flex flex-col gap-2">
+      <label className="text-base font-medium text-gray-700">
+        {label}
+        {required && <span className="text-rose-400 ml-1">*</span>}
+      </label>
       {children}
     </div>
   );

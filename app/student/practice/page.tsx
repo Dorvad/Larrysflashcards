@@ -43,20 +43,20 @@ export default function PracticePage() {
     const currentWord = cards[currentIndex];
 
     return (
-      <div className="bg-[#F7F5F0] min-h-screen">
+      <div className="bg-[#F7F5F0]">
         {/* Top bar */}
-        <div className="px-4 pt-6 pb-2 flex items-center">
+        <div className="px-4 pt-5 pb-1 flex items-center max-w-lg mx-auto">
           <Link
             href="/student"
-            className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors min-h-[48px] pr-4"
+            className="flex items-center gap-2 text-gray-400 min-h-[48px] pr-6"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm">Stop</span>
+            <span className="text-base">Stop</span>
           </Link>
         </div>
 
         {/* Practice card — key change triggers slide-in animation */}
-        <div key={currentIndex} className="px-4 py-2 animate-card-enter">
+        <div key={currentIndex} className="px-4 pb-6 animate-card-enter">
           <PracticeCard
             word={currentWord}
             cardNumber={currentIndex + 1}

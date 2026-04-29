@@ -22,8 +22,9 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-lg pb-2">
-      <div className="flex flex-row items-stretch">
+    /* xl:hidden keeps the bottom nav through tablet landscape (1024px iPad) */
+    <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-lg">
+      <div className="flex flex-row items-stretch pb-safe">
         {navItems.map(({ href, icon: Icon, label }) => {
           const isActive = pathname === href || (href !== "/student" && pathname.startsWith(href));
 
@@ -31,7 +32,7 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
-              className="flex-1 flex flex-col items-center justify-center min-h-[60px] pt-2"
+              className="flex-1 flex flex-col items-center justify-center min-h-[64px] pt-2 pb-1"
             >
               <Icon
                 className={`w-6 h-6 ${isActive ? "text-sky-600" : "text-gray-400"}`}
