@@ -28,14 +28,18 @@ export interface Word {
   status: WordStatus;
   strength: number; // 0–5
   timesReviewed: number;
-  lastReviewed: string | null; // ISO date string
-  nextReview: string | null;   // ISO date string
+  lastReviewed: string | null;
+  nextReview: string | null;
   teacherNote?: string;
   tags?: string[];
   difficulty: Difficulty;
   audioUrl?: string;
   audioExampleUrl?: string;
   imageUrl?: string;
+  // Workflow flags
+  isPendingApproval?: boolean;
+  submittedByStudent?: boolean;
+  isActive?: boolean;
 }
 
 export interface PendingWord {

@@ -207,6 +207,58 @@ export async function deleteWord(id: string): Promise<WordActionResult> {
   }
 }
 
+export async function suggestWord(formData: FormData): Promise<WordActionResult> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Not signed in." };
+
+    const { data: student, error: studentErr } = await supabase
+      .from("students")
+      .select("id")
+      .eq("profile_id", user.id)
+      .single();
+
+    if (studentErr || !student) {
+      return { error: "Student record not found. Ask Dor for help." };
+    }
+
+    const hebrewGuess = ((formData.get("hebrewGuess") as string) ?? "").trim();
+    const description = ((formData.get("description") as string) ?? "").trim();
+    const heardWhere = ((formData.get("heardWhere") as string) ?? "").trim();
+    const notes = ((formData.get("notes") as string) ?? "").trim();
+
+    if (!description) return { error: "Please describe the word." };
+
+    const { data, error } = await supabase
+      .from("words")
+      .insert({
+        student_id: student.id,
+        created_by: user.id,
+        hebrew: hebrewGuess || "(unknown)",
+        hebrew_niqqud: hebrewGuess || null,
+        meaning_en: description,
+        example_en: heardWhere ? `Heard: ${heardWhere}` : null,
+        teacher_notes: notes || null,
+        is_pending_approval: true,
+        submitted_by_student: true,
+        is_active: false,
+      })
+      .select("id")
+      .single();
+
+    if (error) return { error: error.message };
+
+    revalidatePath("/teacher/pending");
+    revalidatePath("/teacher");
+    return { wordId: data?.id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not send suggestion." };
+  }
+}
+
 function getWeekStart(): string {
   const now = new Date();
   const day = now.getDay();

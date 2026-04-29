@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getDueToday, getRecentlyAdded } from "@/lib/mock-data";
+import { dbWordToWord } from "@/lib/supabase/mappers";
 import { ChevronRight, Flame } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import type { Word } from "@/types";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -18,18 +20,46 @@ function getDateLabel() {
   });
 }
 
-export default function StudentHomePage() {
-  const dueToday = getDueToday();
-  const recentlyAdded = getRecentlyAdded();
-  const count = dueToday.length;
+interface StudentData {
+  allWords: Word[];
+  recentlyAdded: Word[];
+}
+
+async function loadStudentData(): Promise<StudentData> {
+  const configured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
+  if (!configured) {
+    return { allWords: getDueToday(), recentlyAdded: getRecentlyAdded() };
+  }
+
+  try {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("words")
+      .select("*")
+      .eq("is_active", true)
+      .eq("is_pending_approval", false)
+      .order("created_at", { ascending: false });
+
+    const words = (data ?? []).map(dbWordToWord);
+    return { allWords: words, recentlyAdded: words.slice(0, 8) };
+  } catch {
+    return { allWords: getDueToday(), recentlyAdded: getRecentlyAdded() };
+  }
+}
+
+export default async function StudentHomePage() {
+  const { allWords, recentlyAdded } = await loadStudentData();
+  const count = allWords.length;
 
   return (
     <div className="min-h-screen">
       {/* ── Header ────────────────────────────────────────────── */}
       <div className="px-5 pt-12 pb-6 animate-fade-slide-up">
-        <p className="text-sm font-medium text-gray-400 tracking-wide">
-          {getDateLabel()}
-        </p>
+        <p className="text-sm font-medium text-gray-400 tracking-wide">{getDateLabel()}</p>
         <h1 className="text-[32px] font-bold text-gray-900 leading-tight mt-1">
           {getGreeting()},
           <br />
@@ -40,7 +70,6 @@ export default function StudentHomePage() {
       {/* ── Practice card ─────────────────────────────────────── */}
       <div className="px-5 animate-fade-slide-up delay-75">
         <div className="relative bg-sky-500 rounded-3xl px-6 py-7 shadow-lg shadow-sky-200/60 overflow-hidden">
-          {/* Decorative blobs */}
           <div className="absolute -top-8 -right-8 w-40 h-40 bg-sky-400/30 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-sky-600/20 rounded-full blur-2xl pointer-events-none" />
 
@@ -49,7 +78,7 @@ export default function StudentHomePage() {
               <div className="flex items-center gap-2 mb-1">
                 <Flame className="w-4 h-4 text-sky-200" />
                 <p className="text-sky-100 text-base font-semibold">
-                  {count} word{count === 1 ? "" : "s"} ready to review
+                  {count} {count === 1 ? "word" : "words"} ready to review
                 </p>
               </div>
             ) : (
@@ -106,7 +135,7 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      {/* Bottom links — deliberately low-key */}
+      {/* Bottom links */}
       <div className="flex flex-col items-center gap-3 py-12 mt-4 animate-fade-slide-up delay-300">
         <Link
           href="/teacher"

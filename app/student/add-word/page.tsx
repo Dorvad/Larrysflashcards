@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowLeft, Send } from "lucide-react";
+import { suggestWord } from "@/app/actions/words";
 
 export default function AddWordPage() {
   const [hebrewGuess, setHebrewGuess] = useState("");
@@ -10,12 +11,28 @@ export default function AddWordPage() {
   const [heardWhere, setHeardWhere] = useState("");
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const canSubmit = description.trim().length > 0 && heardWhere.trim().length > 0;
 
   function handleSubmit() {
     if (!canSubmit) return;
-    setSubmitted(true);
+    setError(null);
+    const fd = new FormData();
+    fd.append("hebrewGuess", hebrewGuess);
+    fd.append("description", description);
+    fd.append("heardWhere", heardWhere);
+    fd.append("notes", notes);
+
+    startTransition(async () => {
+      const result = await suggestWord(fd);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setSubmitted(true);
+      }
+    });
   }
 
   if (submitted) {
@@ -24,9 +41,7 @@ export default function AddWordPage() {
         <span className="text-6xl" aria-hidden="true">
           ✅
         </span>
-        <h1 className="text-2xl font-bold text-gray-900 mt-4">
-          Sent to Dor!
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 mt-4">Sent to Dor!</h1>
         <p className="text-base text-gray-500 mt-2 text-center">
           Dor will review your word and add it to your list.
         </p>
@@ -65,6 +80,13 @@ export default function AddWordPage() {
           </p>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="mt-4 mx-4 bg-rose-50 rounded-2xl p-4 border border-rose-200">
+          <p className="text-sm text-rose-700">{error}</p>
+        </div>
+      )}
 
       {/* Form */}
       <div className="mt-6 px-4 flex flex-col gap-5 pb-10">
@@ -150,11 +172,11 @@ export default function AddWordPage() {
         {/* Submit button */}
         <button
           onClick={handleSubmit}
-          disabled={!canSubmit}
+          disabled={!canSubmit || isPending}
           className="bg-sky-500 text-white text-xl rounded-2xl py-5 w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.97] transition-transform"
         >
           <Send className="w-5 h-5" />
-          Send to Dor
+          {isPending ? "Sending…" : "Send to Dor"}
         </button>
       </div>
     </div>

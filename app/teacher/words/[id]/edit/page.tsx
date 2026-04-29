@@ -9,31 +9,25 @@ import HebrewText from "@/components/shared/HebrewText";
 import type { Word } from "@/types";
 
 async function loadWord(id: string): Promise<Word | null> {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
+  const configured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
+  if (!configured) {
     return getWordById(id) ?? null;
   }
+
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("words")
-      .select("*")
-      .eq("id", id)
-      .single();
-    return data ? dbWordToWord(data) : (getWordById(id) ?? null);
+    const { data } = await supabase.from("words").select("*").eq("id", id).single();
+    return data ? dbWordToWord(data) : null;
   } catch {
-    return getWordById(id) ?? null;
+    return null;
   }
 }
 
-export default async function EditWordPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function EditWordPage({ params }: { params: { id: string } }) {
   const word = await loadWord(params.id);
   if (!word) notFound();
 

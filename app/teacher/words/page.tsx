@@ -26,6 +26,7 @@ async function loadWords(): Promise<LoadResult> {
       .from("words")
       .select("*")
       .eq("is_active", true)
+      .eq("is_pending_approval", false)
       .order("created_at", { ascending: false });
 
     if (error) {
