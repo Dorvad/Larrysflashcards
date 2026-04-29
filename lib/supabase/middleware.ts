@@ -56,8 +56,11 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirect);
     }
 
-    // Students cannot access teacher routes
-    if (pathname.startsWith("/teacher") && role !== "teacher") {
+    // Students cannot access teacher routes.
+    // user_metadata.role is fast (JWT) but may be absent if set after sign-up,
+    // so only hard-block when it is explicitly set to something other than teacher.
+    // The teacher layout does a DB profile check as the authoritative gate.
+    if (pathname.startsWith("/teacher") && role && role !== "teacher") {
       const redirect = request.nextUrl.clone();
       redirect.pathname = "/student";
       return NextResponse.redirect(redirect);

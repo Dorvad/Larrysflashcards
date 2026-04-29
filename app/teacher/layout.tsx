@@ -20,8 +20,15 @@ export default async function TeacherLayout({
 
     if (!user) redirect("/login");
 
-    const role = user.user_metadata?.role as string | undefined;
-    if (role !== "teacher") redirect("/student");
+    // Check profiles table — authoritative, works even if user_metadata wasn't
+    // set at sign-up time.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "teacher") redirect("/student");
   }
 
   return (
