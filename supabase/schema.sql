@@ -122,9 +122,13 @@ CREATE TABLE IF NOT EXISTS public.words (
   example_en           TEXT,
 
   category             TEXT,
+  difficulty           TEXT        NOT NULL DEFAULT 'medium'
+                         CHECK (difficulty IN ('easy', 'medium', 'hard')),
   tags                 TEXT[]      NOT NULL DEFAULT '{}',
   teacher_notes        TEXT,
   audio_url            TEXT,
+  audio_example_url    TEXT,
+  image_url            TEXT,
 
   status               TEXT        NOT NULL DEFAULT 'new'
                          CHECK (status IN ('new', 'practicing', 'strong', 'mastered')),
@@ -514,3 +518,56 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- ================================================================
+-- §11  STORAGE BUCKET (run separately in Supabase Dashboard)
+-- ================================================================
+--
+-- Supabase Storage cannot be configured via SQL alone.
+-- After running this schema, set up the bucket manually:
+--
+--  1. Supabase Dashboard → Storage → New bucket
+--     Name:   word-media
+--     Public: YES  (files are served via public URL)
+--
+--  2. Add these RLS policies on the bucket
+--     (Storage → word-media → Policies → New policy):
+--
+--  INSERT policy  (teachers can upload)
+--  ┌──────────────────────────────────────────────┐
+--  │ name: "Teachers can upload word media"       │
+--  │ allowed operation: INSERT                    │
+--  │ target roles: authenticated                  │
+--  │ USING expression:                            │
+--  │   public.my_role() = 'teacher'               │
+--  └──────────────────────────────────────────────┘
+--
+--  SELECT policy  (everyone can read public URLs)
+--  ┌──────────────────────────────────────────────┐
+--  │ name: "Public read word media"               │
+--  │ allowed operation: SELECT                    │
+--  │ target roles: public                         │
+--  │ USING expression: true                       │
+--  └──────────────────────────────────────────────┘
+--
+--  DELETE policy  (teachers can delete their uploads)
+--  ┌──────────────────────────────────────────────┐
+--  │ name: "Teachers can delete word media"       │
+--  │ allowed operation: DELETE                    │
+--  │ target roles: authenticated                  │
+--  │ USING expression:                            │
+--  │   public.my_role() = 'teacher'               │
+--  └──────────────────────────────────────────────┘
+--
+-- ================================================================
+-- §12  IF YOU ALREADY RAN THE SCHEMA (migration-only additions)
+-- ================================================================
+-- Run only if upgrading an existing database — these columns may
+-- not exist yet.  Idempotent; safe to run multiple times.
+
+ALTER TABLE public.words
+  ADD COLUMN IF NOT EXISTS difficulty        TEXT NOT NULL DEFAULT 'medium'
+    CHECK (difficulty IN ('easy', 'medium', 'hard')),
+  ADD COLUMN IF NOT EXISTS audio_example_url TEXT,
+  ADD COLUMN IF NOT EXISTS image_url         TEXT;

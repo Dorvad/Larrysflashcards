@@ -34,6 +34,8 @@ export interface Word {
   tags?: string[];
   difficulty: Difficulty;
   audioUrl?: string;
+  audioExampleUrl?: string;
+  imageUrl?: string;
 }
 
 export interface PendingWord {

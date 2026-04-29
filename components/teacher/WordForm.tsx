@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { createWord, updateWord } from "@/app/actions/words";
+import { AudioUploader } from "./AudioUploader";
+import { ImageUploader } from "./ImageUploader";
 import type { Word, WordCategory, Difficulty } from "@/types";
 
 const CATEGORIES: WordCategory[] = [
@@ -24,7 +27,9 @@ interface WordFormProps {
 export function WordForm({ word }: WordFormProps) {
   const router = useRouter();
   const isEditing = Boolean(word);
+  const formRef = useRef<HTMLFormElement>(null);
 
+  // Text state
   const [hebrewNiqqud, setHebrewNiqqud] = useState(word?.hebrewNiqqud ?? "");
   const [hebrewPlain, setHebrewPlain] = useState(word?.hebrewPlain ?? "");
   const [transliteration, setTransliteration] = useState(word?.transliteration ?? "");
@@ -35,18 +40,83 @@ export function WordForm({ word }: WordFormProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>(word?.difficulty ?? "medium");
   const [teacherNote, setTeacherNote] = useState(word?.teacherNote ?? "");
   const [weeklyFocus, setWeeklyFocus] = useState(false);
-  const [saved, setSaved] = useState(false);
 
-  function handleSave(e: React.FormEvent) {
+  // Media state
+  const wordAudioBlob = useRef<Blob | null>(null);
+  const exampleAudioBlob = useRef<Blob | null>(null);
+  const imageFile = useRef<File | null>(null);
+  const clearWordAudio = useRef(false);
+  const clearExampleAudio = useRef(false);
+  const clearImage = useRef(false);
+
+  // Submit state
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => {
+    setSaving(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.set("hebrewNiqqud", hebrewNiqqud);
+    formData.set("hebrewPlain", hebrewPlain);
+    formData.set("transliteration", transliteration);
+    formData.set("english", english);
+    formData.set("exampleHebrew", exampleHebrew);
+    formData.set("exampleEnglish", exampleEnglish);
+    formData.set("category", category);
+    formData.set("difficulty", difficulty);
+    formData.set("teacherNote", teacherNote);
+    formData.set("weeklyFocus", weeklyFocus ? "1" : "0");
+
+    if (wordAudioBlob.current) {
+      formData.set(
+        "audioWord",
+        new File([wordAudioBlob.current], "pronunciation.webm", {
+          type: wordAudioBlob.current.type || "audio/webm",
+        })
+      );
+    }
+    if (clearWordAudio.current) formData.set("clearAudioWord", "1");
+
+    if (exampleAudioBlob.current) {
+      formData.set(
+        "audioExample",
+        new File([exampleAudioBlob.current], "example.webm", {
+          type: exampleAudioBlob.current.type || "audio/webm",
+        })
+      );
+    }
+    if (clearExampleAudio.current) formData.set("clearAudioExample", "1");
+
+    if (imageFile.current) {
+      formData.set("image", imageFile.current);
+    }
+    if (clearImage.current) formData.set("clearImage", "1");
+
+    const result = isEditing
+      ? await updateWord(word!.id, formData)
+      : await createWord(formData);
+
+    if (result?.error) {
+      setError(result.error);
+      setSaving(false);
+    } else {
       router.push("/teacher/words");
-    }, 1200);
+      router.refresh();
+    }
   }
 
   return (
-    <form onSubmit={handleSave} className="flex flex-col gap-8">
+    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-8">
+      {error && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl px-5 py-4">
+          <p className="text-sm font-semibold text-rose-700 mb-1">Could not save</p>
+          <p className="text-sm text-rose-600">{error}</p>
+        </div>
+      )}
+
       {/* Section: The Word */}
       <FormSection label="The Word">
         <Field label="Hebrew with niqqud (vowel marks)" required>
@@ -90,56 +160,6 @@ export function WordForm({ word }: WordFormProps) {
             required
           />
         </Field>
-      </FormSection>
-
-      {/* Section: Usage */}
-      <FormSection label="Usage Example">
-        <Field label="Hebrew example sentence">
-          <textarea
-            dir="rtl"
-            lang="he"
-            className="input-field text-lg resize-none"
-            style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
-            rows={2}
-            value={exampleHebrew}
-            onChange={(e) => setExampleHebrew(e.target.value)}
-            placeholder="שָׁלוֹם, מַה שְּׁלוֹמְךָ?"
-          />
-        </Field>
-        <Field label="English translation of example">
-          <input
-            className="input-field"
-            value={exampleEnglish}
-            onChange={(e) => setExampleEnglish(e.target.value)}
-            placeholder="Hello, how are you?"
-          />
-        </Field>
-        <Field label="Category">
-          <select
-            className="input-field"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as WordCategory)}
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </FormSection>
-
-      {/* Section: Teacher Notes */}
-      <FormSection label="Teacher Notes">
-        <Field label="Note for Larry">
-          <textarea
-            className="input-field resize-none"
-            rows={3}
-            value={teacherNote}
-            onChange={(e) => setTeacherNote(e.target.value)}
-            placeholder="A tip or connection to help Larry remember this word..."
-          />
-        </Field>
         <Field label="Difficulty">
           <div className="flex gap-3">
             {(["easy", "medium", "hard"] as Difficulty[]).map((d) => (
@@ -162,7 +182,103 @@ export function WordForm({ word }: WordFormProps) {
             ))}
           </div>
         </Field>
-        {/* Weekly focus toggle — large tap target */}
+      </FormSection>
+
+      {/* Section: Category */}
+      <FormSection label="Category">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategory(c)}
+              className={`py-3 px-3 rounded-xl text-sm font-medium text-center transition-colors border-2 min-h-[48px] active:scale-[0.97] ${
+                category === c
+                  ? "border-sky-400 bg-sky-50 text-sky-700"
+                  : "border-gray-200 bg-white text-gray-500"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </FormSection>
+
+      {/* Section: Pronunciation */}
+      <FormSection label="Pronunciation">
+        <AudioUploader
+          label="Word recording"
+          existingUrl={word?.audioUrl}
+          onBlobChange={(blob) => {
+            wordAudioBlob.current = blob;
+            if (!blob) clearWordAudio.current = true;
+          }}
+          onClear={() => {
+            clearWordAudio.current = true;
+          }}
+        />
+      </FormSection>
+
+      {/* Section: Usage Example */}
+      <FormSection label="Usage Example">
+        <Field label="Hebrew example sentence">
+          <textarea
+            dir="rtl"
+            lang="he"
+            className="input-field text-lg resize-none"
+            style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
+            rows={2}
+            value={exampleHebrew}
+            onChange={(e) => setExampleHebrew(e.target.value)}
+            placeholder="שָׁלוֹם, מַה שְּׁלוֹמְךָ?"
+          />
+        </Field>
+        <Field label="English translation of example">
+          <input
+            className="input-field"
+            value={exampleEnglish}
+            onChange={(e) => setExampleEnglish(e.target.value)}
+            placeholder="Hello, how are you?"
+          />
+        </Field>
+        <AudioUploader
+          label="Example sentence recording"
+          existingUrl={word?.audioExampleUrl}
+          onBlobChange={(blob) => {
+            exampleAudioBlob.current = blob;
+            if (!blob) clearExampleAudio.current = true;
+          }}
+          onClear={() => {
+            clearExampleAudio.current = true;
+          }}
+        />
+      </FormSection>
+
+      {/* Section: Picture */}
+      <FormSection label="Picture">
+        <ImageUploader
+          existingUrl={word?.imageUrl}
+          onFileChange={(file) => {
+            imageFile.current = file;
+            if (!file) clearImage.current = true;
+          }}
+          onClear={() => {
+            clearImage.current = true;
+          }}
+        />
+      </FormSection>
+
+      {/* Section: Teacher Notes */}
+      <FormSection label="Teacher Notes">
+        <Field label="Note for Larry">
+          <textarea
+            className="input-field resize-none"
+            rows={3}
+            value={teacherNote}
+            onChange={(e) => setTeacherNote(e.target.value)}
+            placeholder="A tip or connection to help Larry remember this word..."
+          />
+        </Field>
         <label className="flex items-center gap-4 cursor-pointer py-2 min-h-[52px]">
           <input
             type="checkbox"
@@ -176,23 +292,13 @@ export function WordForm({ word }: WordFormProps) {
         </label>
       </FormSection>
 
-      {/* Section: Audio */}
-      <FormSection label="Audio">
-        <div className="bg-gray-50 rounded-2xl p-6 border-2 border-dashed border-gray-200 text-center">
-          <p className="text-base text-gray-400">Audio upload — coming soon</p>
-          <p className="text-sm text-gray-300 mt-1">
-            You&rsquo;ll be able to record or upload a pronunciation clip here
-          </p>
-        </div>
-      </FormSection>
-
       {/* Save */}
       <button
         type="submit"
-        disabled={saved}
-        className="w-full bg-sky-500 active:bg-sky-700 disabled:bg-emerald-500 text-white text-xl font-semibold py-5 rounded-2xl transition-colors active:scale-[0.97] min-h-[64px]"
+        disabled={saving}
+        className="w-full bg-sky-500 active:bg-sky-700 disabled:bg-sky-300 text-white text-xl font-semibold py-5 rounded-2xl transition-colors active:scale-[0.97] min-h-[64px]"
       >
-        {saved ? "Saved!" : isEditing ? "Save changes" : "Add word"}
+        {saving ? "Saving…" : isEditing ? "Save changes" : "Add word"}
       </button>
     </form>
   );

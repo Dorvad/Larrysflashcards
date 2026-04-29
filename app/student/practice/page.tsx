@@ -25,7 +25,6 @@ export default function PracticePage() {
   function handleResponse(response: CardResponse) {
     const newResponses = [...responses, response];
     setResponses(newResponses);
-
     if (currentIndex >= cards.length - 1) {
       setPhase("complete");
     } else {
@@ -37,6 +36,25 @@ export default function PracticePage() {
     setCurrentIndex(0);
     setResponses([]);
     setPhase("quiz");
+  }
+
+  if (cards.length === 0) {
+    return (
+      <div className="bg-[#F7F5F0] min-h-screen flex flex-col items-center justify-center px-6 gap-6 text-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">All caught up!</h1>
+          <p className="text-xl text-gray-500 mt-2">
+            No words are due for review right now.
+          </p>
+        </div>
+        <Link
+          href="/student"
+          className="btn-primary text-lg rounded-2xl px-8 py-4"
+        >
+          Back home
+        </Link>
+      </div>
+    );
   }
 
   if (phase === "quiz") {
@@ -55,7 +73,7 @@ export default function PracticePage() {
           </Link>
         </div>
 
-        {/* Practice card — key change triggers slide-in animation */}
+        {/* Card — key triggers slide-in animation on every new word */}
         <div key={currentIndex} className="px-4 pb-6 animate-card-enter">
           <PracticeCard
             word={currentWord}

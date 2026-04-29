@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Volume2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { Volume2, Play, Pause } from "lucide-react";
 import HebrewText from "@/components/shared/HebrewText";
 import type { Word, CardResponse } from "@/types";
 
@@ -19,15 +19,45 @@ export function PracticeCard({
   onResponse,
 }: PracticeCardProps) {
   const [revealed, setRevealed] = useState(false);
+  const [wordPlaying, setWordPlaying] = useState(false);
+  const [examplePlaying, setExamplePlaying] = useState(false);
+  const wordAudioRef = useRef<HTMLAudioElement>(null);
+  const exampleAudioRef = useRef<HTMLAudioElement>(null);
 
   const progress = ((cardNumber - 1) / totalCards) * 100;
+
+  function toggleWordAudio() {
+    const audio = wordAudioRef.current;
+    if (!audio) return;
+    if (wordPlaying) {
+      audio.pause();
+    } else {
+      audio.currentTime = 0;
+      audio.play();
+    }
+    setWordPlaying(!wordPlaying);
+  }
+
+  function toggleExampleAudio() {
+    const audio = exampleAudioRef.current;
+    if (!audio) return;
+    if (examplePlaying) {
+      audio.pause();
+    } else {
+      audio.currentTime = 0;
+      audio.play();
+    }
+    setExamplePlaying(!examplePlaying);
+  }
 
   return (
     <div className="flex flex-col gap-5 w-full max-w-lg mx-auto">
       {/* Progress */}
       <div>
         <div className="flex justify-between text-sm text-gray-400 mb-2">
-          <span>{cardNumber} of {totalCards}</span>
+          <span>
+            {cardNumber} of {totalCards}
+          </span>
           <span>{Math.round(progress)}%</span>
         </div>
         <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -40,19 +70,45 @@ export function PracticeCard({
 
       {/* Card */}
       <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
-        {/* Question face */}
-        <div className="px-6 pt-10 pb-8 text-center flex flex-col items-center gap-5">
-          {/* Hear it — placeholder, visually present but not active */}
-          <button
-            disabled
-            className="flex items-center gap-2 text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-5 py-2.5 cursor-not-allowed min-h-[44px]"
-            aria-label="Audio not yet available"
-          >
-            <Volume2 className="w-4 h-4" />
-            Hear it
-          </button>
+        {/* Image — shown if available */}
+        {word.imageUrl && (
+          <div className="w-full h-40 sm:h-48 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={word.imageUrl}
+              alt={word.english}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
 
-          {/* Hebrew word — large, prominent */}
+        {/* Question face */}
+        <div className="px-6 pt-8 pb-6 text-center flex flex-col items-center gap-5">
+          {/* Hear it button */}
+          {word.audioUrl ? (
+            <button
+              type="button"
+              onClick={toggleWordAudio}
+              className="flex items-center gap-2 text-sm font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded-full px-5 py-2.5 min-h-[44px] active:bg-sky-100 transition-colors"
+            >
+              {wordPlaying ? (
+                <Pause className="w-4 h-4" />
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
+              Hear it
+            </button>
+          ) : (
+            <button
+              disabled
+              className="flex items-center gap-2 text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-5 py-2.5 cursor-not-allowed min-h-[44px]"
+            >
+              <Volume2 className="w-4 h-4" />
+              Hear it
+            </button>
+          )}
+
+          {/* Hebrew word */}
           <HebrewText size="2xl">{word.hebrewNiqqud}</HebrewText>
 
           {!revealed && (
@@ -78,6 +134,20 @@ export function PracticeCard({
                 {word.exampleHebrew}
               </p>
               <p className="text-base text-gray-500 italic">{word.exampleEnglish}</p>
+              {word.audioExampleUrl && (
+                <button
+                  type="button"
+                  onClick={toggleExampleAudio}
+                  className="mt-3 flex items-center gap-2 text-sm font-medium text-sky-600 active:text-sky-800"
+                >
+                  {examplePlaying ? (
+                    <Pause className="w-4 h-4" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Hear the example
+                </button>
+              )}
             </div>
 
             {word.teacherNote && (
@@ -105,8 +175,6 @@ export function PracticeCard({
               <p className="text-center text-sm text-gray-400 font-medium uppercase tracking-wide">
                 How did that go?
               </p>
-
-              {/* Phone: stacked full-width  |  sm+: 3 columns */}
               <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3">
                 <ResponseButton
                   onClick={() => onResponse("forgot")}
@@ -137,6 +205,26 @@ export function PracticeCard({
           )}
         </div>
       </div>
+
+      {/* Hidden audio elements */}
+      {word.audioUrl && (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <audio
+          ref={wordAudioRef}
+          src={word.audioUrl}
+          onEnded={() => setWordPlaying(false)}
+          className="hidden"
+        />
+      )}
+      {word.audioExampleUrl && (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <audio
+          ref={exampleAudioRef}
+          src={word.audioExampleUrl}
+          onEnded={() => setExamplePlaying(false)}
+          className="hidden"
+        />
+      )}
     </div>
   );
 }

@@ -1,61 +1,127 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { use, useState, useRef } from "react";
+import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getWordById } from "@/lib/mock-data";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
-import { Volume2, ArrowLeft, Star } from "lucide-react";
+import { Volume2, Play, Pause, ArrowLeft, Star } from "lucide-react";
 
-async function Page({ params }: { params: { id: string } }) {
+function AudioButton({
+  url,
+  label,
+  variant = "primary",
+}: {
+  url: string;
+  label: string;
+  variant?: "primary" | "ghost";
+}) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  function toggle() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+    setPlaying(!playing);
+  }
+
+  const baseClass =
+    "flex items-center gap-2 rounded-full px-5 py-2.5 min-h-[44px] transition-colors";
+  const variantClass =
+    variant === "primary"
+      ? "bg-sky-500 text-white active:bg-sky-700"
+      : "text-sky-600 bg-sky-50 border border-sky-200 active:bg-sky-100";
+
+  return (
+    <>
+      <button type="button" onClick={toggle} className={`${baseClass} ${variantClass}`}>
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+        <span className="text-sm font-semibold">{label}</span>
+      </button>
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio ref={audioRef} src={url} onEnded={() => setPlaying(false)} className="hidden" />
+    </>
+  );
+}
+
+export default function WordDetailPage({ params }: { params: { id: string } }) {
   const word = getWordById(params.id);
   if (!word) notFound();
 
   return (
     <div className="bg-[#F7F5F0] min-h-screen">
-      {/* Top nav */}
+      {/* Back nav */}
       <div className="px-4 pt-5 pb-1">
         <Link
           href="/student/words"
           className="inline-flex items-center gap-2 text-gray-500 min-h-[48px]"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="text-base">My Words</span>
+          <span className="text-base font-medium">My Words</span>
         </Link>
       </div>
 
-      <div className="px-4 pt-2 pb-10 flex flex-col gap-4">
-        {/* Hero word card */}
-        <div className="bg-white rounded-3xl p-8 shadow-md text-center flex flex-col items-center gap-3">
-          <HebrewText size="xl">{word.hebrewNiqqud}</HebrewText>
-
-          {word.hebrewPlain && word.hebrewPlain !== word.hebrewNiqqud && (
-            <p
-              dir="rtl"
-              lang="he"
-              style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
-              className="text-2xl text-gray-400"
-            >
-              {word.hebrewPlain}
-            </p>
+      <div className="px-4 pt-2 pb-10 flex flex-col gap-4 max-w-lg mx-auto">
+        {/* Hero card */}
+        <div className="bg-white rounded-3xl shadow-md overflow-hidden">
+          {/* Image */}
+          {word.imageUrl && (
+            <div className="w-full h-48 sm:h-56 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={word.imageUrl}
+                alt={word.english}
+                className="w-full h-full object-cover"
+              />
+            </div>
           )}
 
-          <p className="text-xl text-gray-400 italic">{word.transliteration}</p>
-          <p className="text-2xl font-semibold text-gray-900">{word.english}</p>
+          <div className="p-6 text-center flex flex-col items-center gap-3">
+            {/* Hebrew */}
+            <HebrewText size="xl">{word.hebrewNiqqud}</HebrewText>
 
-          <div className="flex flex-row items-center justify-center gap-2 flex-wrap">
-            <StatusBadge status={word.status} />
-            <span className="text-sm text-gray-500 bg-gray-100 rounded-full px-3 py-1">
-              {word.category}
-            </span>
+            {word.hebrewPlain && word.hebrewPlain !== word.hebrewNiqqud && (
+              <p
+                dir="rtl"
+                lang="he"
+                style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
+                className="text-2xl text-gray-400"
+              >
+                {word.hebrewPlain}
+              </p>
+            )}
+
+            <p className="text-xl text-gray-400 italic">{word.transliteration}</p>
+            <p className="text-2xl font-bold text-gray-900">{word.english}</p>
+
+            <div className="flex flex-row items-center justify-center gap-2 flex-wrap mt-1">
+              <StatusBadge status={word.status} />
+              <span className="text-sm text-gray-500 bg-gray-100 rounded-full px-3 py-1">
+                {word.category}
+              </span>
+            </div>
+
+            {/* Audio buttons */}
+            <div className="flex flex-wrap gap-2 justify-center mt-2">
+              {word.audioUrl ? (
+                <AudioButton url={word.audioUrl} label="Hear the word" />
+              ) : (
+                <button
+                  disabled
+                  className="flex items-center gap-2 text-sm text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-5 py-2.5 cursor-not-allowed min-h-[44px]"
+                >
+                  <Volume2 className="w-4 h-4" />
+                  No audio yet
+                </button>
+              )}
+            </div>
           </div>
-
-          <button
-            disabled
-            className="flex items-center gap-2 text-sm text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-5 py-2.5 cursor-not-allowed min-h-[44px]"
-            aria-label="Audio not yet available"
-          >
-            <Volume2 className="w-4 h-4" />
-            Hear it
-          </button>
         </div>
 
         {/* Example sentence */}
@@ -72,6 +138,15 @@ async function Page({ params }: { params: { id: string } }) {
             {word.exampleHebrew}
           </p>
           <p className="text-base text-gray-600 italic">{word.exampleEnglish}</p>
+          {word.audioExampleUrl && (
+            <div className="mt-4">
+              <AudioButton
+                url={word.audioExampleUrl}
+                label="Hear the example"
+                variant="ghost"
+              />
+            </div>
+          )}
         </div>
 
         {/* Teacher note */}
@@ -126,5 +201,3 @@ async function Page({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-export default Page;
