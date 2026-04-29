@@ -23,9 +23,9 @@ function AudioButton({ url, label, variant = "primary" }: { url: string; label: 
       <button
         type="button"
         onClick={toggle}
-        className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 min-h-[44px] text-sm font-semibold transition-colors ${
+        className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 min-h-[44px] text-sm font-semibold transition-all active:scale-[0.96] ${
           variant === "primary"
-            ? "bg-sky-500 text-white active:bg-sky-700"
+            ? "bg-sky-500 text-white active:bg-sky-700 shadow-md shadow-sky-200/50"
             : "text-sky-600 bg-sky-50 border border-sky-200 active:bg-sky-100"
         }`}
       >
@@ -45,7 +45,7 @@ export default function WordDetailPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen pb-4">
       {/* Back navigation */}
-      <div className="px-4 pt-5">
+      <div className="px-4 pt-5 animate-fade-slide-up">
         <Link
           href="/student/words"
           className="inline-flex items-center gap-1 text-sky-500 font-semibold text-sm min-h-[44px]"
@@ -56,7 +56,7 @@ export default function WordDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Hero card */}
-      <div className="mx-4 mt-3 bg-white rounded-3xl shadow-md overflow-hidden border border-gray-100/80">
+      <div className="mx-4 mt-3 bg-white rounded-3xl shadow-md overflow-hidden border border-gray-100/80 animate-pop-in">
         {word.imageUrl && (
           <div className="w-full h-52 sm:h-64 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -98,7 +98,7 @@ export default function WordDetailPage({ params }: { params: { id: string } }) {
 
       <div className="px-4 mt-4 flex flex-col gap-4">
         {/* Example sentence */}
-        <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100/60">
+        <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100/60 animate-fade-slide-up delay-75">
           <p className="text-[11px] font-semibold text-amber-500 uppercase tracking-widest mb-3">
             Example
           </p>
@@ -116,7 +116,7 @@ export default function WordDetailPage({ params }: { params: { id: string } }) {
 
         {/* Teacher note */}
         {word.teacherNote && (
-          <div className="bg-sky-50 rounded-2xl p-5 border border-sky-100/60">
+          <div className="bg-sky-50 rounded-2xl p-5 border border-sky-100/60 animate-fade-slide-up delay-150">
             <p className="text-[11px] font-semibold text-sky-500 uppercase tracking-widest mb-2">
               Note from Dor
             </p>
@@ -125,7 +125,7 @@ export default function WordDetailPage({ params }: { params: { id: string } }) {
         )}
 
         {/* Practice history */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80 animate-fade-slide-up delay-200">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
             Practice history
           </h2>
@@ -160,7 +160,7 @@ export default function WordDetailPage({ params }: { params: { id: string } }) {
         {/* CTA */}
         <Link
           href="/student/practice"
-          className="block w-full bg-sky-500 active:bg-sky-700 active:scale-[0.97] text-white text-xl font-bold rounded-2xl py-5 text-center transition-all shadow-lg shadow-sky-200/60 min-h-[68px]"
+          className="animate-fade-slide-up delay-300 block w-full bg-sky-500 active:bg-sky-700 active:scale-[0.97] text-white text-xl font-bold rounded-2xl py-5 text-center transition-all shadow-lg shadow-sky-200/60 min-h-[68px]"
         >
           Practice this word
         </Link>

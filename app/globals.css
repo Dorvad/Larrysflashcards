@@ -90,6 +90,11 @@
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
 
+  /* Tap highlight suppression for native feel */
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   /* Warm text */
   .text-warm {
     color: #44403c;
@@ -131,8 +136,42 @@
   animation: slideUp 0.35s cubic-bezier(0.34, 1.18, 0.64, 1) both;
 }
 
+/* Category / content card pop-in */
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.88) translateY(14px); }
+  65%  { transform: scale(1.02) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-pop-in {
+  animation: popIn 0.4s cubic-bezier(0.34, 1.15, 0.64, 1) both;
+}
+
+/* General entrance for sections & list items */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-slide-up {
+  animation: fadeSlideUp 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Scale-in for modals / overlays */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
 /* Stagger helper — add delay classes for sequential entrance */
+.delay-50  { animation-delay: 50ms; }
 .delay-75  { animation-delay: 75ms; }
+.delay-100 { animation-delay: 100ms; }
 .delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
 .delay-225 { animation-delay: 225ms; }
 .delay-300 { animation-delay: 300ms; }
+.delay-375 { animation-delay: 375ms; }
+.delay-450 { animation-delay: 450ms; }
+.delay-525 { animation-delay: 525ms; }

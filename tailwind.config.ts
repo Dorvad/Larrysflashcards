@@ -83,9 +83,13 @@ const config: Config = {
         "card-hover": "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
       },
       animation: {
-        "flip-in": "flipIn 0.35s ease-out",
-        "fade-in": "fadeIn 0.2s ease-out",
-        "slide-up": "slideUp 0.25s ease-out",
+        "flip-in":       "flipIn 0.35s ease-out",
+        "fade-in":       "fadeIn 0.2s ease-out",
+        "slide-up":      "slideUp 0.25s ease-out",
+        "pop-in":        "popIn 0.4s cubic-bezier(0.34, 1.15, 0.64, 1) both",
+        "fade-slide-up": "fadeSlideUp 0.42s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "scale-in":      "scaleIn 0.3s cubic-bezier(0.34, 1.2, 0.64, 1) both",
+        "pulse-soft":    "pulseSoft 2.4s ease-in-out infinite",
       },
       keyframes: {
         flipIn: {
@@ -99,6 +103,23 @@ const config: Config = {
         slideUp: {
           "0%": { transform: "translateY(16px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        popIn: {
+          "0%":   { opacity: "0", transform: "scale(0.88) translateY(14px)" },
+          "65%":  { transform: "scale(1.02) translateY(-2px)" },
+          "100%": { opacity: "1", transform: "scale(1) translateY(0)" },
+        },
+        fadeSlideUp: {
+          "0%":   { opacity: "0", transform: "translateY(20px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        scaleIn: {
+          "0%":   { opacity: "0", transform: "scale(0.92)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        pulseSoft: {
+          "0%, 100%": { opacity: "1" },
+          "50%":      { opacity: "0.7" },
         },
       },
     },

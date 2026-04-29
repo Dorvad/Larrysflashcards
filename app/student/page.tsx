@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getDueToday, getRecentlyAdded } from "@/lib/mock-data";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Flame } from "lucide-react";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -25,7 +25,7 @@ export default function StudentHomePage() {
   return (
     <div className="min-h-screen">
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="px-5 pt-12 pb-6">
+      <div className="px-5 pt-12 pb-6 animate-fade-slide-up">
         <p className="text-sm font-medium text-gray-400 tracking-wide">
           {getDateLabel()}
         </p>
@@ -37,27 +37,40 @@ export default function StudentHomePage() {
       </div>
 
       {/* ── Practice card ─────────────────────────────────────── */}
-      <div className="px-5">
-        <div className="bg-sky-500 rounded-3xl px-6 py-7 shadow-lg shadow-sky-200/60">
-          <p className="text-sky-100 text-base font-medium">
-            {count > 0
-              ? `${count} word${count === 1 ? "" : "s"} ready to review`
-              : "You're all caught up today"}
-          </p>
-          <Link
-            href="/student/practice"
-            className="mt-4 block w-full bg-white active:bg-sky-50 active:scale-[0.98] text-sky-600 text-xl font-bold text-center py-5 rounded-2xl shadow-sm transition-all duration-150"
-          >
-            Start Practice
-          </Link>
+      <div className="px-5 animate-fade-slide-up delay-75">
+        <div className="relative bg-sky-500 rounded-3xl px-6 py-7 shadow-lg shadow-sky-200/60 overflow-hidden">
+          {/* Decorative blobs */}
+          <div className="absolute -top-8 -right-8 w-40 h-40 bg-sky-400/30 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-sky-600/20 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative">
+            {count > 0 ? (
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-4 h-4 text-sky-200" />
+                <p className="text-sky-100 text-base font-semibold">
+                  {count} word{count === 1 ? "" : "s"} ready to review
+                </p>
+              </div>
+            ) : (
+              <p className="text-sky-100 text-base font-semibold mb-1">
+                You&apos;re all caught up today
+              </p>
+            )}
+            <Link
+              href="/student/practice"
+              className="mt-4 block w-full bg-white active:bg-sky-50 active:scale-[0.98] text-sky-600 text-xl font-bold text-center py-5 rounded-2xl shadow-sm transition-all duration-150"
+            >
+              Start Practice
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* ── New this week ──────────────────────────────────────── */}
       {recentlyAdded.length > 0 && (
-        <div className="mt-10">
+        <div className="mt-10 animate-fade-slide-up delay-150">
           <div className="flex items-center justify-between px-5 mb-4">
-            <h2 className="text-base font-semibold text-gray-500 uppercase tracking-wider text-[13px]">
+            <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider">
               New this week
             </h2>
             <Link
@@ -67,12 +80,13 @@ export default function StudentHomePage() {
               See all <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 px-5 snap-x snap-mandatory">
-            {recentlyAdded.map((word) => (
+          <div className="flex gap-3 overflow-x-auto pb-3 px-5 snap-x snap-mandatory">
+            {recentlyAdded.map((word, i) => (
               <Link
                 key={word.id}
                 href={`/student/words/${word.id}`}
-                className="bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100/80 shrink-0 block active:scale-[0.97] transition-transform snap-start min-w-[120px]"
+                style={{ animationDelay: `${200 + i * 60}ms` }}
+                className="animate-fade-slide-up bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100/80 shrink-0 block active:scale-[0.97] transition-transform snap-start min-w-[120px]"
               >
                 <p
                   dir="rtl"
@@ -92,7 +106,7 @@ export default function StudentHomePage() {
       )}
 
       {/* Teacher access — deliberately low-key */}
-      <div className="text-center py-12 mt-4">
+      <div className="text-center py-12 mt-4 animate-fade-slide-up delay-300">
         <Link
           href="/teacher"
           className="text-xs text-gray-300 active:text-gray-500 transition-colors"

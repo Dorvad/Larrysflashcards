@@ -29,86 +29,64 @@ export function PracticeCard({
   function toggleWordAudio() {
     const audio = wordAudioRef.current;
     if (!audio) return;
-    if (wordPlaying) {
-      audio.pause();
-    } else {
-      audio.currentTime = 0;
-      audio.play();
-    }
+    if (wordPlaying) { audio.pause(); } else { audio.currentTime = 0; audio.play(); }
     setWordPlaying(!wordPlaying);
   }
 
   function toggleExampleAudio() {
     const audio = exampleAudioRef.current;
     if (!audio) return;
-    if (examplePlaying) {
-      audio.pause();
-    } else {
-      audio.currentTime = 0;
-      audio.play();
-    }
+    if (examplePlaying) { audio.pause(); } else { audio.currentTime = 0; audio.play(); }
     setExamplePlaying(!examplePlaying);
   }
 
   return (
     <div className="flex flex-col gap-5 w-full max-w-lg mx-auto">
       {/* Progress */}
-      <div>
+      <div className="animate-fade-slide-up">
         <div className="flex justify-between text-sm text-gray-400 mb-2">
-          <span>
-            {cardNumber} of {totalCards}
-          </span>
-          <span>{Math.round(progress)}%</span>
+          <span>{cardNumber} of {totalCards}</span>
+          <span>{Math.round(((cardNumber) / totalCards) * 100)}%</span>
         </div>
-        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-sky-400 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
+            className="h-full bg-gradient-to-r from-sky-400 to-sky-500 rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${(cardNumber / totalCards) * 100}%` }}
           />
         </div>
       </div>
 
       {/* Card */}
-      <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
-        {/* Image — shown if available */}
+      <div className="bg-white rounded-3xl shadow-[0_4px_32px_rgba(0,0,0,0.10)] border border-gray-100 overflow-hidden">
+        {/* Image */}
         {word.imageUrl && (
           <div className="w-full h-40 sm:h-48 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={word.imageUrl}
-              alt={word.english}
-              className="w-full h-full object-cover"
-            />
+            <img src={word.imageUrl} alt={word.english} className="w-full h-full object-cover" />
           </div>
         )}
 
         {/* Question face */}
         <div className="px-6 pt-8 pb-6 text-center flex flex-col items-center gap-5">
-          {/* Hear it button */}
           {word.audioUrl ? (
             <button
               type="button"
               onClick={toggleWordAudio}
-              className="flex items-center gap-2 text-sm font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded-full px-5 py-2.5 min-h-[44px] active:bg-sky-100 transition-colors"
+              className="flex items-center gap-2 text-sm font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded-full px-5 py-2.5 min-h-[44px] active:bg-sky-100 active:scale-[0.97] transition-all"
             >
-              {wordPlaying ? (
-                <Pause className="w-4 h-4" />
-              ) : (
-                <Volume2 className="w-4 h-4" />
-              )}
-              Hear it
+              {wordPlaying ? <Pause className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              {wordPlaying ? "Playing…" : "Hear it"}
             </button>
           ) : (
             <button
               disabled
-              className="flex items-center gap-2 text-sm text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-5 py-2.5 cursor-not-allowed min-h-[44px]"
+              className="flex items-center gap-2 text-sm text-gray-300 bg-gray-50 border border-gray-100 rounded-full px-5 py-2.5 cursor-not-allowed min-h-[44px]"
             >
               <Volume2 className="w-4 h-4" />
               Hear it
             </button>
           )}
 
-          {/* Hebrew word */}
           <HebrewText size="2xl">{word.hebrewNiqqud}</HebrewText>
 
           {!revealed && (
@@ -118,13 +96,13 @@ export function PracticeCard({
 
         {/* Revealed answer */}
         {revealed && (
-          <div className="border-t border-gray-100 bg-gray-50 px-6 py-6 flex flex-col gap-5 animate-fade-in">
-            <div className="text-center">
-              <p className="text-3xl font-semibold text-gray-900">{word.english}</p>
+          <div className="border-t border-gray-100 bg-gray-50/80 px-6 py-6 flex flex-col gap-5 animate-fade-in">
+            <div className="text-center animate-pop-in">
+              <p className="text-3xl font-bold text-gray-900">{word.english}</p>
               <p className="text-lg text-gray-400 italic mt-1">{word.transliteration}</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 animate-fade-slide-up delay-75">
               <p
                 className="text-xl text-gray-700 mb-2 leading-relaxed"
                 dir="rtl"
@@ -140,18 +118,14 @@ export function PracticeCard({
                   onClick={toggleExampleAudio}
                   className="mt-3 flex items-center gap-2 text-sm font-medium text-sky-600 active:text-sky-800"
                 >
-                  {examplePlaying ? (
-                    <Pause className="w-4 h-4" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
+                  {examplePlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                   Hear the example
                 </button>
               )}
             </div>
 
             {word.teacherNote && (
-              <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100">
+              <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 animate-fade-slide-up delay-150">
                 <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">
                   Note from Dor
                 </p>
@@ -166,38 +140,38 @@ export function PracticeCard({
           {!revealed ? (
             <button
               onClick={() => setRevealed(true)}
-              className="w-full bg-sky-500 active:bg-sky-700 text-white text-xl font-bold py-5 rounded-2xl transition-colors duration-100 active:scale-[0.97] min-h-[68px]"
+              className="w-full bg-sky-500 active:bg-sky-700 text-white text-xl font-bold py-5 rounded-2xl transition-all duration-100 active:scale-[0.97] shadow-md shadow-sky-200/50 min-h-[68px]"
             >
               Show meaning
             </button>
           ) : (
             <div className="flex flex-col gap-3 animate-slide-up">
-              <p className="text-center text-sm text-gray-400 font-medium uppercase tracking-wide">
+              <p className="text-center text-xs text-gray-400 font-semibold uppercase tracking-widest">
                 How did that go?
               </p>
               <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3">
                 <ResponseButton
                   onClick={() => onResponse("forgot")}
-                  bg="bg-rose-50 active:bg-rose-200"
+                  bg="bg-rose-50 active:bg-rose-100"
                   border="border-rose-200"
-                  text="text-rose-700"
+                  textColor="text-rose-700"
                   label="I forgot"
                   sublabel="Try again soon"
                 />
                 <ResponseButton
                   onClick={() => onResponse("almost")}
-                  bg="bg-amber-50 active:bg-amber-200"
+                  bg="bg-amber-50 active:bg-amber-100"
                   border="border-amber-200"
-                  text="text-amber-700"
+                  textColor="text-amber-700"
                   label="Almost"
                   sublabel="Getting there"
                 />
                 <ResponseButton
                   onClick={() => onResponse("knew")}
-                  bg="bg-emerald-50 active:bg-emerald-200"
+                  bg="bg-emerald-50 active:bg-emerald-100"
                   border="border-emerald-200"
-                  text="text-emerald-700"
-                  label="I knew it"
+                  textColor="text-emerald-700"
+                  label="I knew it!"
                   sublabel="Well done"
                 />
               </div>
@@ -206,24 +180,13 @@ export function PracticeCard({
         </div>
       </div>
 
-      {/* Hidden audio elements */}
       {word.audioUrl && (
         // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio
-          ref={wordAudioRef}
-          src={word.audioUrl}
-          onEnded={() => setWordPlaying(false)}
-          className="hidden"
-        />
+        <audio ref={wordAudioRef} src={word.audioUrl} onEnded={() => setWordPlaying(false)} className="hidden" />
       )}
       {word.audioExampleUrl && (
         // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio
-          ref={exampleAudioRef}
-          src={word.audioExampleUrl}
-          onEnded={() => setExamplePlaying(false)}
-          className="hidden"
-        />
+        <audio ref={exampleAudioRef} src={word.audioExampleUrl} onEnded={() => setExamplePlaying(false)} className="hidden" />
       )}
     </div>
   );
@@ -233,25 +196,23 @@ function ResponseButton({
   onClick,
   bg,
   border,
-  text,
+  textColor,
   label,
   sublabel,
 }: {
   onClick: () => void;
   bg: string;
   border: string;
-  text: string;
+  textColor: string;
   label: string;
   sublabel: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 w-full rounded-2xl py-5 px-3
-        border transition-all duration-100 active:scale-[0.96] min-h-[72px] sm:min-h-[88px]
-        ${bg} ${border}`}
+      className={`flex flex-col items-center justify-center gap-1 w-full rounded-2xl py-5 px-3 border transition-all duration-100 active:scale-[0.96] min-h-[72px] sm:min-h-[88px] ${bg} ${border}`}
     >
-      <span className={`text-lg font-bold leading-tight ${text}`}>{label}</span>
+      <span className={`text-lg font-bold leading-tight ${textColor}`}>{label}</span>
       <span className="text-xs text-gray-400 leading-tight">{sublabel}</span>
     </button>
   );
