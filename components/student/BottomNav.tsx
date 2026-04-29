@@ -27,7 +27,7 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="xl:hidden fixed bottom-0 inset-x-0 z-50">
+    <nav className="fixed bottom-0 inset-x-0 z-50">
       {/* Frosted glass bar */}
       <div className="bg-white/92 backdrop-blur-xl border-t border-gray-100/80 shadow-[0_-1px_20px_rgba(0,0,0,0.06)]">
         <div className="flex items-stretch pb-safe max-w-xl mx-auto">
