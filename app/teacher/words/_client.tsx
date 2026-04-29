@@ -11,7 +11,15 @@ import type { Word, WordStatus } from "@/types";
 type StatusFilter = "All" | WordStatus;
 const STATUS_OPTIONS: StatusFilter[] = ["All", "new", "practicing", "strong", "mastered"];
 
-export function TeacherWordsClient({ words }: { words: Word[] }) {
+export function TeacherWordsClient({
+  words,
+  demoMode = false,
+  error,
+}: {
+  words: Word[];
+  demoMode?: boolean;
+  error?: string;
+}) {
   const [query, setQuery] = useState("");
   const [activeStatus, setActiveStatus] = useState<StatusFilter>("All");
 
@@ -31,6 +39,33 @@ export function TeacherWordsClient({ words }: { words: Word[] }) {
 
   return (
     <div>
+      {/* Demo mode banner */}
+      {demoMode && (
+        <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <span className="text-amber-500 text-lg leading-none mt-0.5">⚠</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Demo mode</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Showing sample words. Add your Supabase credentials to <code className="font-mono bg-amber-100 px-1 rounded">.env.local</code> to use the real database.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {error && (
+        <div className="mb-5 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <span className="text-rose-500 text-lg leading-none mt-0.5">✕</span>
+          <div>
+            <p className="text-sm font-semibold text-rose-800">Database error</p>
+            <p className="text-xs text-rose-700 mt-0.5 font-mono">{error}</p>
+            <p className="text-xs text-rose-600 mt-1">
+              Make sure the schema is set up and the student record exists in Supabase.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getDueToday } from "@/lib/mock-data";
 import { PracticeCard } from "@/components/student/PracticeCard";
 import type { CardResponse, Word } from "@/types";
+import { X } from "lucide-react";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const shuffled = [...arr];
@@ -39,17 +40,12 @@ export default function PracticePage() {
 
   if (cards.length === 0) {
     return (
-      <div className="bg-[#F7F5F0] min-h-screen flex flex-col items-center justify-center px-6 gap-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 gap-6 text-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">All caught up!</h1>
-          <p className="text-xl text-gray-500 mt-2">
-            No words are due for review right now.
-          </p>
+          <p className="text-xl text-gray-500 mt-2">No words due right now.</p>
         </div>
-        <Link
-          href="/student"
-          className="btn-primary text-lg rounded-2xl px-8 py-4"
-        >
+        <Link href="/student" className="btn-primary text-lg rounded-2xl px-8 py-4">
           Back home
         </Link>
       </div>
@@ -58,11 +54,20 @@ export default function PracticePage() {
 
   if (phase === "quiz") {
     const currentWord = cards[currentIndex];
-
     return (
-      <div className="bg-[#F7F5F0]">
-        {/* Card — key triggers slide-in animation on every new word */}
-        <div key={currentIndex} className="px-4 pt-4 pb-6 animate-card-enter">
+      <div>
+        {/* Stop button — minimal, top-right */}
+        <div className="flex justify-end px-4 pt-5 pb-1">
+          <Link
+            href="/student"
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-400 active:text-gray-600 min-h-[44px] min-w-[44px] justify-end"
+          >
+            <X className="w-5 h-5" />
+            Stop
+          </Link>
+        </div>
+
+        <div key={currentIndex} className="px-4 pb-6 animate-card-enter">
           <PracticeCard
             word={currentWord}
             cardNumber={currentIndex + 1}
@@ -74,48 +79,42 @@ export default function PracticePage() {
     );
   }
 
-  // Complete phase
-  const knewCount = responses.filter((r) => r === "knew").length;
+  // ── Complete ──────────────────────────────────────────────────────────────────
+  const knewCount   = responses.filter((r) => r === "knew").length;
   const almostCount = responses.filter((r) => r === "almost").length;
   const forgotCount = responses.filter((r) => r === "forgot").length;
 
   return (
-    <div className="bg-[#F7F5F0] min-h-screen flex flex-col items-center justify-center px-6 gap-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 gap-6">
       <div className="animate-slide-up text-center">
         <h1 className="text-3xl font-bold text-gray-900">
           {knewCount === cards.length ? "Perfect session!" : "Nice work, Larry."}
         </h1>
-        <p className="text-xl text-gray-500 mt-2">
+        <p className="text-lg text-gray-500 mt-2">
           You practiced {cards.length} word{cards.length === 1 ? "" : "s"}.
         </p>
       </div>
 
-      {/* Score summary */}
-      <div className="bg-white rounded-3xl p-6 shadow-md max-w-sm w-full animate-slide-up delay-75">
+      {/* Score card */}
+      <div className="bg-white rounded-3xl p-6 shadow-md w-full max-w-sm animate-slide-up delay-75">
         <div className="flex flex-col gap-4">
-          <ScoreRow label="I knew it" value={knewCount} color="text-emerald-600" />
-          <ScoreRow label="Almost" value={almostCount} color="text-amber-500" />
-          <ScoreRow label="Still learning" value={forgotCount} color="text-rose-500" />
+          <ScoreRow label="I knew it"     value={knewCount}   color="text-emerald-500" />
+          <ScoreRow label="Almost"        value={almostCount} color="text-amber-500"   />
+          <ScoreRow label="Still learning" value={forgotCount} color="text-rose-500"    />
         </div>
       </div>
 
       {forgotCount > 0 && (
-        <p className="text-base text-gray-400 text-center italic animate-slide-up delay-150">
+        <p className="text-sm text-gray-400 text-center italic animate-slide-up delay-150">
           We&apos;ll bring the harder words back soon.
         </p>
       )}
 
-      <div className="flex flex-col gap-3 max-w-sm w-full animate-slide-up delay-225">
-        <button
-          onClick={handlePracticeMore}
-          className="btn-primary text-lg w-full rounded-2xl py-4"
-        >
+      <div className="flex flex-col gap-3 w-full max-w-sm animate-slide-up delay-225">
+        <button onClick={handlePracticeMore} className="btn-primary text-lg w-full rounded-2xl py-4">
           Practice again
         </button>
-        <Link
-          href="/student"
-          className="btn-secondary text-lg w-full text-center rounded-2xl py-4"
-        >
+        <Link href="/student" className="btn-secondary text-lg w-full text-center rounded-2xl py-4">
           Back home
         </Link>
       </div>
@@ -123,15 +122,7 @@ export default function PracticePage() {
   );
 }
 
-function ScoreRow({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color: string;
-}) {
+function ScoreRow({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-base text-gray-700 font-medium">{label}</span>
