@@ -45,18 +45,18 @@ export default function PracticePage() {
     return (
       <div className="bg-[#F7F5F0] min-h-screen">
         {/* Top bar */}
-        <div className="px-4 pt-6 pb-4 flex items-center justify-between">
+        <div className="px-4 pt-6 pb-2 flex items-center">
           <Link
             href="/student"
-            className="flex items-center gap-2 text-gray-400 min-h-[48px]"
+            className="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors min-h-[48px] pr-4"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm">Stop practice</span>
+            <span className="text-sm">Stop</span>
           </Link>
         </div>
 
-        {/* Practice card */}
-        <div className="px-4 py-4">
+        {/* Practice card — key change triggers slide-in animation */}
+        <div key={currentIndex} className="px-4 py-2 animate-card-enter">
           <PracticeCard
             word={currentWord}
             cardNumber={currentIndex + 1}
@@ -75,66 +75,61 @@ export default function PracticePage() {
 
   return (
     <div className="bg-[#F7F5F0] min-h-screen flex flex-col items-center justify-center px-6 gap-6">
-      {/* Celebration */}
-      <span className="text-6xl" aria-hidden="true">
-        ✨
-      </span>
-      <h1 className="text-3xl font-bold text-gray-900 text-center">
-        Nice work, Larry!
-      </h1>
-      <p className="text-xl text-gray-600 text-center">
-        You practiced {cards.length} words today.
-      </p>
+      <div className="animate-slide-up text-center">
+        <h1 className="text-3xl font-bold text-gray-900">
+          {knewCount === cards.length ? "Perfect session!" : "Nice work, Larry."}
+        </h1>
+        <p className="text-xl text-gray-500 mt-2">
+          You practiced {cards.length} word{cards.length === 1 ? "" : "s"}.
+        </p>
+      </div>
 
       {/* Score summary */}
-      <div className="bg-white rounded-3xl p-6 shadow-md max-w-sm w-full">
+      <div className="bg-white rounded-3xl p-6 shadow-md max-w-sm w-full animate-slide-up delay-75">
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <span className="text-base text-emerald-700 font-medium">
-              I knew it
-            </span>
-            <span className="text-xl font-bold text-emerald-600">
-              {knewCount}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-base text-amber-700 font-medium">
-              Almost
-            </span>
-            <span className="text-xl font-bold text-amber-600">
-              {almostCount}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-base text-rose-700 font-medium">
-              Still learning
-            </span>
-            <span className="text-xl font-bold text-rose-600">
-              {forgotCount}
-            </span>
-          </div>
+          <ScoreRow label="I knew it" value={knewCount} color="text-emerald-600" />
+          <ScoreRow label="Almost" value={almostCount} color="text-amber-500" />
+          <ScoreRow label="Still learning" value={forgotCount} color="text-rose-500" />
         </div>
       </div>
 
-      <p className="text-base text-gray-500 text-center italic">
-        We&apos;ll bring the harder words back soon.
-      </p>
+      {forgotCount > 0 && (
+        <p className="text-base text-gray-400 text-center italic animate-slide-up delay-150">
+          We&apos;ll bring the harder words back soon.
+        </p>
+      )}
 
-      {/* Action buttons */}
-      <div className="flex flex-col gap-3 max-w-sm w-full">
+      <div className="flex flex-col gap-3 max-w-sm w-full animate-slide-up delay-225">
+        <button
+          onClick={handlePracticeMore}
+          className="btn-primary text-lg w-full rounded-2xl py-4"
+        >
+          Practice again
+        </button>
         <Link
           href="/student"
           className="btn-secondary text-lg w-full text-center rounded-2xl py-4"
         >
           Back home
         </Link>
-        <button
-          onClick={handlePracticeMore}
-          className="btn-primary text-lg w-full rounded-2xl py-4"
-        >
-          Practice more
-        </button>
       </div>
+    </div>
+  );
+}
+
+function ScoreRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-base text-gray-700 font-medium">{label}</span>
+      <span className={`text-2xl font-bold ${color}`}>{value}</span>
     </div>
   );
 }

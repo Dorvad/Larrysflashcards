@@ -23,28 +23,25 @@ export function PracticeCard({
   const progress = ((cardNumber - 1) / totalCards) * 100;
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-lg mx-auto">
-      {/* Progress bar */}
+    <div className="flex flex-col gap-5 w-full max-w-lg mx-auto">
+      {/* Progress */}
       <div>
         <div className="flex justify-between text-sm text-gray-400 mb-2">
-          <span>
-            {cardNumber} of {totalCards}
-          </span>
+          <span>{cardNumber} of {totalCards}</span>
           <span>{Math.round(progress)}%</span>
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-sky-400 rounded-full transition-all duration-500"
+            className="h-full bg-sky-400 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
-      {/* Flash card */}
+      {/* Card */}
       <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
         {/* Question face */}
-        <div className="px-6 pt-10 pb-8 text-center flex flex-col items-center gap-4">
-          {/* Audio placeholder */}
+        <div className="px-6 pt-12 pb-10 text-center flex flex-col items-center gap-5">
           <button
             disabled
             className="flex items-center gap-2 text-sm text-gray-300 bg-gray-50 rounded-full px-4 py-2 cursor-not-allowed"
@@ -54,12 +51,11 @@ export function PracticeCard({
             Hear it
           </button>
 
-          <HebrewText size="xl">{word.hebrewNiqqud}</HebrewText>
+          {/* Hebrew word — large and prominent */}
+          <HebrewText size="2xl">{word.hebrewNiqqud}</HebrewText>
 
           {!revealed && (
-            <p className="text-sm text-gray-400 mt-1">
-              {word.category}
-            </p>
+            <p className="text-base text-gray-400">{word.category}</p>
           )}
         </div>
 
@@ -67,72 +63,66 @@ export function PracticeCard({
         {revealed && (
           <div className="border-t border-gray-100 bg-gray-50 px-6 py-6 flex flex-col gap-4 animate-fade-in">
             <div className="text-center">
-              <p className="text-3xl font-semibold text-gray-900">
-                {word.english}
-              </p>
-              <p className="text-base text-gray-400 italic mt-1">
-                {word.transliteration}
-              </p>
+              <p className="text-3xl font-semibold text-gray-900">{word.english}</p>
+              <p className="text-base text-gray-400 italic mt-1">{word.transliteration}</p>
             </div>
 
             <div className="bg-white rounded-2xl p-4 border border-gray-100">
               <p
-                className="text-lg text-gray-700 mb-1"
+                className="text-xl text-gray-700 mb-1 leading-relaxed"
                 dir="rtl"
                 lang="he"
                 style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
               >
                 {word.exampleHebrew}
               </p>
-              <p className="text-sm text-gray-500 italic">
-                {word.exampleEnglish}
-              </p>
+              <p className="text-sm text-gray-500 italic">{word.exampleEnglish}</p>
             </div>
 
             {word.teacherNote && (
-              <div className="flex gap-2 bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                <span className="text-lg shrink-0">💬</span>
-                <p className="text-sm text-amber-800">{word.teacherNote}</p>
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                <p className="text-sm text-amber-800 font-medium mb-0.5">Note from Dor</p>
+                <p className="text-sm text-amber-700">{word.teacherNote}</p>
               </div>
             )}
           </div>
         )}
 
         {/* Action area */}
-        <div className="px-6 pb-8 pt-4">
+        <div className="px-5 pb-7 pt-4">
           {!revealed ? (
             <button
               onClick={() => setRevealed(true)}
-              className="w-full bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white text-lg font-semibold py-4 rounded-2xl transition-colors min-h-[60px]"
+              className="w-full bg-sky-500 hover:bg-sky-600 active:bg-sky-700 active:scale-[0.97] text-white text-xl font-bold py-5 rounded-2xl transition-all duration-100 min-h-[68px]"
             >
               Show meaning
             </button>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 animate-slide-up">
               <p className="text-center text-sm text-gray-400 font-medium uppercase tracking-wide">
-                How did you do?
+                How did that go?
               </p>
               <div className="grid grid-cols-3 gap-3">
                 <ResponseButton
                   onClick={() => onResponse("forgot")}
                   bg="bg-rose-50 hover:bg-rose-100 active:bg-rose-200"
                   text="text-rose-700"
-                  emoji="😕"
                   label="I forgot"
+                  sublabel="Try again soon"
                 />
                 <ResponseButton
                   onClick={() => onResponse("almost")}
                   bg="bg-amber-50 hover:bg-amber-100 active:bg-amber-200"
                   text="text-amber-700"
-                  emoji="🤔"
                   label="Almost"
+                  sublabel="Getting there"
                 />
                 <ResponseButton
                   onClick={() => onResponse("knew")}
                   bg="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200"
                   text="text-emerald-700"
-                  emoji="✓"
                   label="I knew it"
+                  sublabel="Well done"
                 />
               </div>
             </div>
@@ -147,22 +137,22 @@ function ResponseButton({
   onClick,
   bg,
   text,
-  emoji,
   label,
+  sublabel,
 }: {
   onClick: () => void;
   bg: string;
   text: string;
-  emoji: string;
   label: string;
+  sublabel: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl py-4 px-2 min-h-[80px] transition-colors ${bg}`}
+      className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-4 px-2 min-h-[84px] transition-all duration-100 active:scale-[0.92] ${bg}`}
     >
-      <span className="text-2xl leading-none">{emoji}</span>
-      <span className={`text-sm font-semibold ${text}`}>{label}</span>
+      <span className={`text-base font-bold leading-tight ${text}`}>{label}</span>
+      <span className="text-xs text-gray-400 leading-tight">{sublabel}</span>
     </button>
   );
 }

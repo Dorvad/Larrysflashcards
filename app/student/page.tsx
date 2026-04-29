@@ -1,94 +1,80 @@
 import Link from "next/link";
-import {
-  getDueToday,
-  getRecentlyAdded,
-  getLastLessonWords,
-  PROGRESS_STATS,
-} from "@/lib/mock-data";
-import ProgressSummaryCard from "@/components/student/ProgressSummaryCard";
-import WordCard from "@/components/student/WordCard";
+import { getDueToday, getRecentlyAdded } from "@/lib/mock-data";
 
 export default function StudentHomePage() {
   const dueToday = getDueToday();
   const recentlyAdded = getRecentlyAdded();
-  const lastLessonWords = getLastLessonWords();
+  const count = dueToday.length;
 
   return (
-    <div className="bg-[#F7F5F0]">
+    <div className="bg-[#F7F5F0] min-h-screen flex flex-col">
       {/* Greeting */}
-      <div className="px-4 pt-8 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Hello Larry 👋</h1>
-        <p className="text-lg text-gray-500 mt-1">
-          Ready for a little Hebrew today?
+      <div className="px-5 pt-10 pb-2">
+        <h1 className="text-3xl font-bold text-gray-900 leading-tight">
+          Hello, Larry.
+        </h1>
+        <p className="text-xl text-gray-500 mt-1">
+          {count > 0
+            ? `You have ${count} word${count === 1 ? "" : "s"} to practice today.`
+            : "You're all caught up for today."}
         </p>
       </div>
 
-      {/* Today's Practice card */}
-      <div className="bg-sky-500 rounded-3xl p-6 mx-4 mt-2 text-white shadow-lg">
-        <p className="text-lg font-semibold">Today&apos;s Practice</p>
-        <p className="text-5xl font-bold mt-1 leading-none">{dueToday.length}</p>
-        <p className="text-base text-sky-100 mt-1">words to review</p>
-
-        <div className="flex flex-row gap-3 mt-6">
-          <Link
-            href="/student/practice"
-            className="flex-1 text-center bg-white text-sky-600 font-bold text-lg py-4 px-6 rounded-2xl"
-          >
-            Start Practice
-          </Link>
-          <Link
-            href="/student/words"
-            className="bg-sky-600 text-white font-semibold text-base py-4 px-5 rounded-2xl whitespace-nowrap"
-          >
-            View My Words
-          </Link>
-        </div>
+      {/* Practice CTA — the main action */}
+      <div className="px-5 mt-6">
+        <Link
+          href="/student/practice"
+          className="block w-full bg-sky-500 hover:bg-sky-600 active:bg-sky-700 active:scale-[0.98] text-white text-2xl font-bold text-center py-6 rounded-3xl shadow-lg transition-all duration-150"
+        >
+          Start Practice
+        </Link>
+        <Link
+          href="/student/words"
+          className="block w-full text-center text-sky-600 font-semibold text-base mt-4 py-3 rounded-2xl hover:bg-sky-50 transition-colors"
+        >
+          Browse my words
+        </Link>
       </div>
 
-      {/* Progress summary */}
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          Your Hebrew
-        </h2>
-        <ProgressSummaryCard stats={PROGRESS_STATS} />
-      </div>
-
-      {/* Recently added */}
-      <div className="px-4 mt-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          New this week
-        </h2>
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {recentlyAdded.map((word) => (
-            <Link
-              key={word.id}
-              href={`/student/words/${word.id}`}
-              className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 shrink-0 block"
-            >
-              <p
-                dir="rtl"
-                lang="he"
-                style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
-                className="text-xl text-gray-900"
+      {/* New this week */}
+      {recentlyAdded.length > 0 && (
+        <div className="px-5 mt-10">
+          <h2 className="text-base font-semibold text-gray-400 uppercase tracking-wide mb-4">
+            New this week
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+            {recentlyAdded.map((word) => (
+              <Link
+                key={word.id}
+                href={`/student/words/${word.id}`}
+                className="bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 shrink-0 block active:scale-[0.97] transition-transform"
               >
-                {word.hebrewNiqqud}
-              </p>
-              <p className="text-sm text-gray-500 mt-0.5">{word.english}</p>
-            </Link>
-          ))}
+                <p
+                  dir="rtl"
+                  lang="he"
+                  style={{ fontFamily: "'Noto Serif Hebrew', serif" }}
+                  className="text-2xl text-gray-900 text-center"
+                >
+                  {word.hebrewNiqqud}
+                </p>
+                <p className="text-sm text-gray-500 mt-1 text-center">
+                  {word.english}
+                </p>
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Last lesson words */}
-      <div className="px-4 mt-6 pb-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">
-          From your last lesson
-        </h2>
-        <div className="flex flex-col gap-3">
-          {lastLessonWords.map((word) => (
-            <WordCard key={word.id} word={word} />
-          ))}
-        </div>
+      {/* Spacer + teacher link at very bottom */}
+      <div className="flex-1" />
+      <div className="text-center py-10 mt-4">
+        <Link
+          href="/teacher"
+          className="text-xs text-gray-300 hover:text-gray-400 transition-colors"
+        >
+          Teacher view
+        </Link>
       </div>
     </div>
   );
