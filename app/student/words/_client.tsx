@@ -244,7 +244,7 @@ export function StudentWordsClient({
       {/* ── Suggest word FAB ────────────────────────────────────── */}
       <Link
         href="/student/add-word"
-        className="fixed bottom-24 right-4 xl:bottom-6 bg-sky-500 active:bg-sky-600 active:scale-[0.96] text-white rounded-full px-5 py-3.5 shadow-xl shadow-sky-300/50 flex items-center gap-2 text-sm font-bold z-40 transition-all"
+        className="fixed bottom-24 right-4 bg-sky-500 active:bg-sky-600 active:scale-[0.96] text-white rounded-full px-5 py-3.5 shadow-xl shadow-sky-300/50 flex items-center gap-2 text-sm font-bold z-40 transition-all"
       >
         + Suggest word
       </Link>
