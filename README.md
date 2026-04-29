@@ -65,6 +65,83 @@ All four values come from your Supabase project dashboard.
 
 ---
 
+## Creating users (Dor and Larry)
+
+The app has two roles: **teacher** (Dor) and **student** (Larry).
+Both are created in Supabase Auth. The role is set in `user_metadata` at
+creation time; the `handle_new_user` database trigger reads it and automatically
+creates the matching row in the `profiles` table.
+
+### Option A — Supabase Dashboard (recommended)
+
+1. Open your Supabase project → **Authentication** → **Users**
+2. Click **Add user** → **Create new user**
+3. Enter email and a strong password, then click **Create user**
+4. Click the new user in the list → **Edit**
+5. Paste the JSON below into **Raw user meta data** and save:
+
+For Dor (teacher):
+```json
+{"role": "teacher", "full_name": "Dor"}
+```
+For Larry (student):
+```json
+{"role": "student", "full_name": "Larry"}
+```
+
+> **Important:** Set the metadata *before* the user signs in for the first time.
+> The trigger runs on INSERT into `auth.users`, so if the user signs in via
+> magic link first, re-set the metadata and manually insert a profiles row (see below).
+
+### Option B — SQL Editor
+
+Run these statements in **Supabase Dashboard → SQL Editor** (replace the
+placeholders with real values):
+
+```sql
+-- Create Dor
+SELECT auth.create_user(
+  '{"email":"dor@example.com","password":"your-strong-password","user_metadata":{"role":"teacher","full_name":"Dor"}}'::jsonb
+);
+
+-- Create Larry
+SELECT auth.create_user(
+  '{"email":"larry@example.com","password":"your-strong-password","user_metadata":{"role":"student","full_name":"Larry"}}'::jsonb
+);
+```
+
+### Verify the profiles table
+
+After creating both users, confirm the trigger fired:
+
+```sql
+SELECT id, role, full_name, email FROM public.profiles;
+```
+
+You should see two rows — one with `role = 'teacher'`, one with `role = 'student'`.
+
+### If a profiles row is missing
+
+The trigger may not have fired (e.g., user was created before the schema was
+applied). Insert the row manually:
+
+```sql
+-- Replace <uuid> with the user's id from auth.users
+INSERT INTO public.profiles (id, role, full_name, email)
+VALUES (
+  '<uuid-from-auth.users>',
+  'teacher',           -- or 'student'
+  'Dor',
+  'dor@example.com'
+)
+ON CONFLICT (id) DO UPDATE
+  SET role = EXCLUDED.role,
+      full_name = EXCLUDED.full_name,
+      email = EXCLUDED.email;
+```
+
+---
+
 ## Database setup
 
 Run `supabase/schema.sql` once against a fresh Supabase project:

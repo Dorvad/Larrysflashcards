@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDueToday, getRecentlyAdded } from "@/lib/mock-data";
 import { ChevronRight, Flame } from "lucide-react";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -105,14 +106,17 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      {/* Teacher access — deliberately low-key */}
-      <div className="text-center py-12 mt-4 animate-fade-slide-up delay-300">
+      {/* Bottom links — deliberately low-key */}
+      <div className="flex flex-col items-center gap-3 py-12 mt-4 animate-fade-slide-up delay-300">
         <Link
           href="/teacher"
           className="text-xs text-gray-300 active:text-gray-500 transition-colors"
         >
           Teacher view
         </Link>
+        <LogoutButton className="text-xs text-gray-300 active:text-rose-400 transition-colors">
+          Sign out
+        </LogoutButton>
       </div>
     </div>
   );

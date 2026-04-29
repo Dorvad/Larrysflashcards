@@ -16,22 +16,26 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
 
-    // Lazy-initialise so server pre-render never touches the Supabase client
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      setError("Couldn't sign in — please check your email and password.");
+    if (error || !data.user) {
+      setError(
+        "We couldn't sign you in. Please check the email and password."
+      );
       setLoading(false);
+      return;
     }
-    // On success, the middleware redirect handles navigation
+
+    const role = data.user.user_metadata?.role as string | undefined;
+    window.location.href = role === "teacher" ? "/teacher" : "/student";
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <div>
         <label
           htmlFor="email"
@@ -69,15 +73,18 @@ export function LoginForm() {
       </div>
 
       {error && (
-        <p
+        <div
           role="alert"
-          className="text-base text-red-600 bg-red-50 rounded-xl px-4 py-3"
+          className="flex items-start gap-3 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-4"
         >
-          {error}
-        </p>
+          <span className="text-rose-500 text-xl leading-none mt-0.5" aria-hidden>
+            ⚠
+          </span>
+          <p className="text-base text-rose-700 leading-snug">{error}</p>
+        </div>
       )}
 
-      <Button type="submit" loading={loading} size="lg" className="mt-2">
+      <Button type="submit" loading={loading} size="xl" className="mt-1">
         Sign in
       </Button>
     </form>

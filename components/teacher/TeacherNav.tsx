@@ -11,8 +11,10 @@ import {
   X,
   ArrowLeft,
   LayoutGrid,
+  LogOut,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 interface NavItem {
   href: string;
@@ -22,10 +24,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/teacher", icon: LayoutGrid, label: "Overview" },
-  { href: "/teacher/words", icon: BookMarked, label: "Words" },
-  { href: "/teacher/pending", icon: Inbox, label: "Pending", badge: 3 },
-  { href: "/teacher/progress", icon: BarChart3, label: "Larry's Progress" },
+  { href: "/teacher",          icon: LayoutGrid, label: "Overview" },
+  { href: "/teacher/words",    icon: BookMarked, label: "Words" },
+  { href: "/teacher/pending",  icon: Inbox,      label: "Pending", badge: 3 },
+  { href: "/teacher/progress", icon: BarChart3,  label: "Larry's Progress" },
 ];
 
 function NavLink({
@@ -89,11 +91,7 @@ export default function TeacherNav() {
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           >
-            {mobileMenuOpen ? (
-              <X className="w-6 h-6" />
-            ) : (
-              <Menu className="w-6 h-6" />
-            )}
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
@@ -108,6 +106,12 @@ export default function TeacherNav() {
                 onClick={() => setMobileMenuOpen(false)}
               />
             ))}
+            <div className="border-t border-gray-100 mt-2 pt-2">
+              <LogoutButton className="flex w-full items-center gap-3 px-3 py-3 rounded-xl text-rose-500 hover:bg-rose-50 transition-colors">
+                <LogOut className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                <span className="text-base font-medium">Sign out</span>
+              </LogoutButton>
+            </div>
           </nav>
         )}
       </header>
@@ -121,22 +125,24 @@ export default function TeacherNav() {
 
         <nav className="flex flex-col gap-1 flex-1">
           {navItems.map((item) => (
-            <NavLink
-              key={item.href}
-              item={item}
-              isActive={isActive(item.href)}
-            />
+            <NavLink key={item.href} item={item} isActive={isActive(item.href)} />
           ))}
         </nav>
 
-        {/* Back to student view */}
-        <Link
-          href="/student"
-          className="flex items-center gap-2 px-3 py-3 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-colors mt-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Larry&apos;s view
-        </Link>
+        {/* Footer links */}
+        <div className="flex flex-col gap-1 border-t border-gray-100 pt-3 mt-2">
+          <Link
+            href="/student"
+            className="flex items-center gap-2 px-3 py-3 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Larry&apos;s view
+          </Link>
+          <LogoutButton className="flex w-full items-center gap-2 px-3 py-3 text-sm text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </LogoutButton>
+        </div>
       </aside>
     </>
   );
