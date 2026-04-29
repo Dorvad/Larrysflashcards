@@ -23,16 +23,33 @@ async function loadDueWords(): Promise<LoadResult> {
     const supabase = await createClient();
     const now = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from("words")
-      .select("*")
-      .eq("is_active", true)
-      .eq("is_pending_approval", false)
-      .or(`next_review_at.is.null,next_review_at.lte.${now}`)
-      .order("next_review_at", { ascending: true, nullsFirst: true });
+    // Split into two queries to avoid embedding a timestamp with colons
+    // inside a PostgREST .or() filter string (causes a parse error).
+    const [neverReviewedRes, dueNowRes] = await Promise.all([
+      supabase
+        .from("words")
+        .select("*")
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .is("next_review_at", null),
+      supabase
+        .from("words")
+        .select("*")
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .not("next_review_at", "is", null)
+        .lte("next_review_at", now),
+    ]);
 
+    const error = neverReviewedRes.error ?? dueNowRes.error;
     if (error) return { words: [], demoMode: false, error: error.message };
-    return { words: (data ?? []).map(dbWordToWord), demoMode: false };
+
+    const combined = [
+      ...(neverReviewedRes.data ?? []),
+      ...(dueNowRes.data ?? []),
+    ].map(dbWordToWord);
+
+    return { words: combined, demoMode: false };
   } catch (e) {
     return {
       words: [],
