@@ -16,30 +16,26 @@
 --
 -- CONTENTS
 -- ────────
---  §0   Prerequisites (uuid, triggers)
---  §1   Helper functions (used by RLS policies)
---  §2   Table: profiles
---  §3   Table: students
---  §4   Table: words
---  §5   Table: reviews
---  §6   Table: weekly_focus
---  §7   Table: teacher_notes
+--  §0   updated_at trigger function
+--  §1   Table: profiles
+--  §2   Table: students
+--  §3   Table: words
+--  §4   Table: reviews
+--  §5   Table: weekly_focus
+--  §6   Table: teacher_notes
+--  §7   Helper functions for RLS  ← must come AFTER the tables they query
 --  §8   Indexes
---  §9   Row-Level Security policies (all tables)
+--  §9   Row-Level Security policies
 --  §10  Auth trigger: auto-create profile on sign-up
 --
 -- ================================================================
 
 
 -- ================================================================
--- §0  PREREQUISITES
+-- §0  updated_at TRIGGER FUNCTION
 -- ================================================================
+-- Reused by every table that has an updated_at column.
 
--- gen_random_uuid() is built into PostgreSQL 13+.
--- uuid-ossp is not required.
-
--- updated_at trigger function: called by every table that has
--- an updated_at column.  Defined once, reused everywhere.
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -52,44 +48,11 @@ $$;
 
 
 -- ================================================================
--- §1  HELPER FUNCTIONS
--- ================================================================
--- These functions run with SECURITY DEFINER so they can read
--- the underlying tables without being blocked by RLS themselves.
--- SET search_path = public prevents search-path injection.
--- They are called inside RLS policy USING / WITH CHECK clauses.
-
--- Returns the current user's role ('teacher' | 'student' | NULL).
--- Returns NULL if the user has no profile yet.
-CREATE OR REPLACE FUNCTION public.my_role()
-RETURNS TEXT
-LANGUAGE SQL
-SECURITY DEFINER
-STABLE
-SET search_path = public
-AS $$
-  SELECT role FROM public.profiles WHERE id = auth.uid()
-$$;
-
--- Returns the students.id for the currently signed-in student.
--- Returns NULL if the user is a teacher or has no student record.
-CREATE OR REPLACE FUNCTION public.my_student_id()
-RETURNS UUID
-LANGUAGE SQL
-SECURITY DEFINER
-STABLE
-SET search_path = public
-AS $$
-  SELECT id FROM public.students WHERE profile_id = auth.uid()
-$$;
-
-
--- ================================================================
--- §2  TABLE: profiles
+-- §1  TABLE: profiles
 -- ================================================================
 -- One row per Supabase Auth user.
--- Created automatically by the handle_new_user trigger (see §10).
--- The role is set from user_metadata.role at sign-up.
+-- Created automatically by the handle_new_user trigger (§10).
+-- The role is read from user_metadata.role at sign-up.
 
 CREATE TABLE IF NOT EXISTS public.profiles (
   id          UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -108,7 +71,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 
 -- ================================================================
--- §3  TABLE: students
+-- §2  TABLE: students
 -- ================================================================
 -- One row per student user.
 -- Created by the teacher after the student's first sign-in.
@@ -119,13 +82,12 @@ CREATE TABLE IF NOT EXISTS public.students (
   profile_id           UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   display_name         TEXT,
   teacher_id           UUID        NOT NULL REFERENCES public.profiles(id),
-  notes                TEXT,                 -- teacher's private notes about this student
+  notes                TEXT,
   text_size_preference TEXT        NOT NULL DEFAULT 'default'
                          CHECK (text_size_preference IN ('small', 'default', 'large', 'x-large')),
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  -- Each Auth user can be a student only once
   UNIQUE (profile_id)
 );
 
@@ -137,50 +99,38 @@ ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 
 
 -- ================================================================
--- §4  TABLE: words
+-- §3  TABLE: words
 -- ================================================================
 -- One row per vocabulary word assigned to a student.
 --
 -- Lifecycle:
---   • Teacher adds a word → is_pending_approval = FALSE,
---     submitted_by_student = FALSE, is_active = TRUE
---   • Student suggests a word → is_pending_approval = TRUE,
---     submitted_by_student = TRUE, is_active = FALSE
---   • Teacher approves suggestion → is_pending_approval = FALSE,
---     is_active = TRUE  (teacher updates the row)
---   • Teacher declines suggestion → is_active stays FALSE,
---     or the row is deleted
+--   Teacher adds word    → is_pending_approval=FALSE, is_active=TRUE
+--   Student suggests     → is_pending_approval=TRUE,  is_active=FALSE
+--   Teacher approves     → is_pending_approval=FALSE, is_active=TRUE
+--   Teacher declines     → delete the row, or leave is_active=FALSE
 
 CREATE TABLE IF NOT EXISTS public.words (
   id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id           UUID        NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
   created_by           UUID        NOT NULL REFERENCES public.profiles(id),
 
-  -- Hebrew content
-  hebrew               TEXT        NOT NULL,          -- plain Hebrew without niqqud
-  hebrew_niqqud        TEXT,                          -- with vowel marks (niqqud)
+  hebrew               TEXT        NOT NULL,
+  hebrew_niqqud        TEXT,
   transliteration      TEXT,
   meaning_en           TEXT        NOT NULL,
   example_he           TEXT,
   example_en           TEXT,
 
-  -- Organisation
   category             TEXT,
   tags                 TEXT[]      NOT NULL DEFAULT '{}',
-
-  -- Dor's guidance for Larry (shown on card)
   teacher_notes        TEXT,
-
-  -- Audio
   audio_url            TEXT,
 
-  -- Learning state
   status               TEXT        NOT NULL DEFAULT 'new'
                          CHECK (status IN ('new', 'practicing', 'strong', 'mastered')),
   current_strength     INTEGER     NOT NULL DEFAULT 0
                          CHECK (current_strength BETWEEN 0 AND 5),
 
-  -- Visibility / approval
   is_active            BOOLEAN     NOT NULL DEFAULT TRUE,
   is_pending_approval  BOOLEAN     NOT NULL DEFAULT FALSE,
   submitted_by_student BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -188,7 +138,7 @@ CREATE TABLE IF NOT EXISTS public.words (
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  -- A word pending approval must not be marked active yet
+  -- A word pending approval must not simultaneously be active
   CONSTRAINT pending_words_not_active
     CHECK (NOT (is_pending_approval = TRUE AND is_active = TRUE))
 );
@@ -201,41 +151,36 @@ ALTER TABLE public.words ENABLE ROW LEVEL SECURITY;
 
 
 -- ================================================================
--- §5  TABLE: reviews
+-- §4  TABLE: reviews
 -- ================================================================
--- One row per individual card review in a practice session.
--- Reviews are append-only; nobody may update or delete them.
--- The strength algorithm updates words.current_strength separately.
+-- One row per individual card review.
+-- Append-only: no UPDATE or DELETE policies are defined.
 
 CREATE TABLE IF NOT EXISTS public.reviews (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  word_id         UUID        NOT NULL REFERENCES public.words(id) ON DELETE CASCADE,
+  word_id         UUID        NOT NULL REFERENCES public.words(id)    ON DELETE CASCADE,
   student_id      UUID        NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
   result          TEXT        NOT NULL CHECK (result IN ('forgot', 'almost', 'knew')),
-  strength_before INTEGER     NOT NULL DEFAULT 0
-                    CHECK (strength_before BETWEEN 0 AND 5),
-  strength_after  INTEGER     NOT NULL DEFAULT 0
-                    CHECK (strength_after BETWEEN 0 AND 5),
+  strength_before INTEGER     NOT NULL DEFAULT 0 CHECK (strength_before BETWEEN 0 AND 5),
+  strength_after  INTEGER     NOT NULL DEFAULT 0 CHECK (strength_after  BETWEEN 0 AND 5),
   reviewed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  next_review_at  TIMESTAMPTZ          -- NULL until a scheduling algorithm is added
+  next_review_at  TIMESTAMPTZ           -- NULL until a scheduling algorithm is wired up
 );
 
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
 
 -- ================================================================
--- §6  TABLE: weekly_focus
+-- §5  TABLE: weekly_focus
 -- ================================================================
--- Dor marks specific words as the lesson focus for a given week.
--- Unique per (student, word, week_start_date) so Dor can re-add
--- a word in a different week without conflict.
+-- Dor marks words as lesson focus for a given week.
 
 CREATE TABLE IF NOT EXISTS public.weekly_focus (
-  id              UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id      UUID    NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
-  word_id         UUID    NOT NULL REFERENCES public.words(id)    ON DELETE CASCADE,
-  week_start_date DATE    NOT NULL,                   -- always a Monday
-  created_by      UUID    NOT NULL REFERENCES public.profiles(id),
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id      UUID        NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  word_id         UUID        NOT NULL REFERENCES public.words(id)    ON DELETE CASCADE,
+  week_start_date DATE        NOT NULL,
+  created_by      UUID        NOT NULL REFERENCES public.profiles(id),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   UNIQUE (student_id, word_id, week_start_date)
@@ -245,7 +190,7 @@ ALTER TABLE public.weekly_focus ENABLE ROW LEVEL SECURITY;
 
 
 -- ================================================================
--- §7  TABLE: teacher_notes
+-- §6  TABLE: teacher_notes
 -- ================================================================
 -- Private notes Dor keeps about Larry's learning.
 -- Completely hidden from students via RLS.
@@ -256,28 +201,60 @@ CREATE TABLE IF NOT EXISTS public.teacher_notes (
   created_by  UUID        NOT NULL REFERENCES public.profiles(id),
   note        TEXT        NOT NULL CHECK (char_length(note) > 0),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  -- No updated_at: notes are immutable; create a new one to amend.
 );
 
 ALTER TABLE public.teacher_notes ENABLE ROW LEVEL SECURITY;
 
 
 -- ================================================================
+-- §7  HELPER FUNCTIONS  (defined AFTER the tables they query)
+-- ================================================================
+-- LANGUAGE SQL functions are validated at creation time in PostgreSQL,
+-- so they must come after the tables they reference.
+--
+-- SECURITY DEFINER: the function runs as its owner (postgres), bypassing
+-- RLS on the inner query.  This is intentional — it lets the function
+-- read the current user's own row without being blocked by the very
+-- policy it is helping to evaluate.
+--
+-- SET search_path = public: prevents search-path injection attacks.
+
+-- Returns the current user's role ('teacher' | 'student' | NULL).
+CREATE OR REPLACE FUNCTION public.my_role()
+RETURNS TEXT
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid()
+$$;
+
+-- Returns students.id for the signed-in student (NULL for teachers).
+CREATE OR REPLACE FUNCTION public.my_student_id()
+RETURNS UUID
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT id FROM public.students WHERE profile_id = auth.uid()
+$$;
+
+
+-- ================================================================
 -- §8  INDEXES
 -- ================================================================
 
--- profiles
 CREATE INDEX IF NOT EXISTS idx_profiles_role
   ON public.profiles (role);
 
--- students
 CREATE INDEX IF NOT EXISTS idx_students_profile_id
   ON public.students (profile_id);
 
 CREATE INDEX IF NOT EXISTS idx_students_teacher_id
   ON public.students (teacher_id);
 
--- words
 CREATE INDEX IF NOT EXISTS idx_words_student_id
   ON public.words (student_id);
 
@@ -293,7 +270,6 @@ CREATE INDEX IF NOT EXISTS idx_words_category
   ON public.words (category)
   WHERE is_active = TRUE;
 
--- reviews
 CREATE INDEX IF NOT EXISTS idx_reviews_student_id
   ON public.reviews (student_id);
 
@@ -303,16 +279,13 @@ CREATE INDEX IF NOT EXISTS idx_reviews_word_id
 CREATE INDEX IF NOT EXISTS idx_reviews_reviewed_at
   ON public.reviews (student_id, reviewed_at DESC);
 
--- reviews: future spaced-repetition scheduling
 CREATE INDEX IF NOT EXISTS idx_reviews_next_review
   ON public.reviews (student_id, next_review_at)
   WHERE next_review_at IS NOT NULL;
 
--- weekly_focus
 CREATE INDEX IF NOT EXISTS idx_weekly_focus_student_week
   ON public.weekly_focus (student_id, week_start_date DESC);
 
--- teacher_notes
 CREATE INDEX IF NOT EXISTS idx_teacher_notes_student_id
   ON public.teacher_notes (student_id, created_at DESC);
 
@@ -321,41 +294,36 @@ CREATE INDEX IF NOT EXISTS idx_teacher_notes_student_id
 -- §9  ROW-LEVEL SECURITY POLICIES
 -- ================================================================
 --
--- Guiding principles
--- ──────────────────
+-- Principles
+-- ──────────
 -- • No policy grants access to ALL authenticated users.
 -- • Every policy is tied to the current user's role or ownership.
 -- • Students cannot see other students' data.
 -- • Students cannot see teacher_notes at all.
--- • Students can only SUGGEST words (pending approval);
---   they cannot edit teacher-approved words.
--- • Reviews are append-only for students.
--- • Anonymous / unauthenticated access: always denied (no policy
---   fires for anon users, so the default DENY applies).
+-- • Students can only INSERT pending word suggestions; they cannot
+--   edit teacher-approved words.
+-- • Reviews are append-only.
+-- • Unauthenticated / anonymous: always denied (no policy fires).
 
 
--- ── §9.1  profiles ───────────────────────────────────────────────
+-- ── profiles ─────────────────────────────────────────────────────
 
--- Every user can read and update their own profile.
 CREATE POLICY "profiles: read own"
-  ON public.profiles
-  FOR SELECT
+  ON public.profiles FOR SELECT
   USING (id = auth.uid());
 
 CREATE POLICY "profiles: update own"
-  ON public.profiles
-  FOR UPDATE
+  ON public.profiles FOR UPDATE
   USING (id = auth.uid())
   WITH CHECK (
     id = auth.uid()
-    -- Prevent a user from promoting themselves to teacher
+    -- Prevent self-promotion: role must stay the same
     AND role = (SELECT role FROM public.profiles WHERE id = auth.uid())
   );
 
--- Teacher can read profiles of students assigned to them.
+-- Teacher can read the profiles of students assigned to them.
 CREATE POLICY "profiles: teacher reads own students"
-  ON public.profiles
-  FOR SELECT
+  ON public.profiles FOR SELECT
   USING (
     public.my_role() = 'teacher'
     AND EXISTS (
@@ -365,52 +333,41 @@ CREATE POLICY "profiles: teacher reads own students"
     )
   );
 
--- INSERT: handled entirely by the handle_new_user trigger (§10).
--- No client INSERT policy is defined → clients cannot insert directly.
-
+-- INSERT: handled by the handle_new_user trigger — no client policy needed.
 -- DELETE: no policy → denied for all clients.
 
 
--- ── §9.2  students ───────────────────────────────────────────────
+-- ── students ─────────────────────────────────────────────────────
 
--- Student reads their own student record.
 CREATE POLICY "students: student reads own"
-  ON public.students
-  FOR SELECT
+  ON public.students FOR SELECT
   USING (profile_id = auth.uid());
 
--- Student can update only their own display preferences.
--- (Column-level enforcement belongs in the application layer.)
 CREATE POLICY "students: student updates own preferences"
-  ON public.students
-  FOR UPDATE
+  ON public.students FOR UPDATE
   USING (profile_id = auth.uid())
   WITH CHECK (
     profile_id = auth.uid()
-    -- Prevent the student from changing their assigned teacher
+    -- Student cannot reassign themselves to a different teacher
     AND teacher_id = (SELECT teacher_id FROM public.students WHERE profile_id = auth.uid())
   );
 
--- Teacher has full access to student records they own.
 CREATE POLICY "students: teacher manages own students"
-  ON public.students
-  FOR ALL
+  ON public.students FOR ALL
   USING  (teacher_id = auth.uid())
   WITH CHECK (teacher_id = auth.uid());
 
 
--- ── §9.3  words ──────────────────────────────────────────────────
+-- ── words ────────────────────────────────────────────────────────
 
--- Student reads their own active words (includes pending suggestions).
+-- Student reads all of their own words (active + pending suggestions).
 CREATE POLICY "words: student reads own"
-  ON public.words
-  FOR SELECT
+  ON public.words FOR SELECT
   USING (student_id = public.my_student_id());
 
--- Student can suggest a new word (insert only when correctly flagged).
+-- Student can only insert a word flagged as a pending suggestion.
 CREATE POLICY "words: student suggests word"
-  ON public.words
-  FOR INSERT
+  ON public.words FOR INSERT
   WITH CHECK (
     student_id           = public.my_student_id()
     AND created_by       = auth.uid()
@@ -419,13 +376,11 @@ CREATE POLICY "words: student suggests word"
     AND is_active            = FALSE
   );
 
--- Student may NOT update or delete words.
--- (No student UPDATE or DELETE policy → denied by default.)
+-- Student may NOT update or delete words (no policy → denied).
 
 -- Teacher has full access to words belonging to their students.
 CREATE POLICY "words: teacher manages own student words"
-  ON public.words
-  FOR ALL
+  ON public.words FOR ALL
   USING (
     public.my_role() = 'teacher'
     AND EXISTS (
@@ -444,24 +399,19 @@ CREATE POLICY "words: teacher manages own student words"
   );
 
 
--- ── §9.4  reviews ────────────────────────────────────────────────
+-- ── reviews ──────────────────────────────────────────────────────
 
--- Student reads their own reviews.
 CREATE POLICY "reviews: student reads own"
-  ON public.reviews
-  FOR SELECT
+  ON public.reviews FOR SELECT
   USING (student_id = public.my_student_id());
 
--- Student inserts their own reviews (append-only; no UPDATE/DELETE).
+-- Append-only for students — no UPDATE or DELETE policy.
 CREATE POLICY "reviews: student inserts own"
-  ON public.reviews
-  FOR INSERT
+  ON public.reviews FOR INSERT
   WITH CHECK (student_id = public.my_student_id());
 
--- Teacher reads reviews for their students.
 CREATE POLICY "reviews: teacher reads own student reviews"
-  ON public.reviews
-  FOR SELECT
+  ON public.reviews FOR SELECT
   USING (
     public.my_role() = 'teacher'
     AND EXISTS (
@@ -471,21 +421,15 @@ CREATE POLICY "reviews: teacher reads own student reviews"
     )
   );
 
--- No UPDATE or DELETE policy for reviews → immutable for everyone.
 
+-- ── weekly_focus ─────────────────────────────────────────────────
 
--- ── §9.5  weekly_focus ───────────────────────────────────────────
-
--- Student reads their own weekly focus words.
 CREATE POLICY "weekly_focus: student reads own"
-  ON public.weekly_focus
-  FOR SELECT
+  ON public.weekly_focus FOR SELECT
   USING (student_id = public.my_student_id());
 
--- Teacher has full control over weekly focus for their students.
 CREATE POLICY "weekly_focus: teacher manages own"
-  ON public.weekly_focus
-  FOR ALL
+  ON public.weekly_focus FOR ALL
   USING (
     public.my_role() = 'teacher'
     AND EXISTS (
@@ -505,13 +449,11 @@ CREATE POLICY "weekly_focus: teacher manages own"
   );
 
 
--- ── §9.6  teacher_notes ──────────────────────────────────────────
--- Completely hidden from students.
--- Teacher can only see notes they themselves created.
+-- ── teacher_notes ────────────────────────────────────────────────
+-- No student policy at all → students are denied at every operation.
 
 CREATE POLICY "teacher_notes: teacher manages own notes"
-  ON public.teacher_notes
-  FOR ALL
+  ON public.teacher_notes FOR ALL
   USING (
     public.my_role() = 'teacher'
     AND created_by = auth.uid()
@@ -520,25 +462,24 @@ CREATE POLICY "teacher_notes: teacher manages own notes"
     public.my_role() = 'teacher'
     AND created_by = auth.uid()
   );
-
--- No student policy → students cannot SELECT, INSERT, UPDATE, or DELETE.
 
 
 -- ================================================================
 -- §10  AUTH TRIGGER: auto-create profile on sign-up
 -- ================================================================
--- When a user signs up, Supabase fires this trigger.
--- The function reads raw_user_meta_data, which you supply when
--- creating users via the Supabase Dashboard or the admin SDK:
+-- Fires after every INSERT on auth.users.
+-- Reads raw_user_meta_data.role; sanitised so only 'teacher' or
+-- 'student' are accepted — anything else silently becomes 'student'.
 --
+-- Supply metadata when creating users:
+--   Dashboard → Authentication → Users → Add user
+--   User metadata JSON: { "role": "teacher", "full_name": "Dor" }
+--
+--   Or via Admin SDK:
 --   supabase.auth.admin.createUser({
---     email: '...',
---     password: '...',
---     user_metadata: { role: 'teacher', full_name: 'Dor' }
+--     email: '...', password: '...',
+--     user_metadata: { role: 'teacher', full_name: 'Dor' },
 --   })
---
--- Valid roles: 'teacher' | 'student'
--- If role is absent or invalid it defaults to 'student' (safe default).
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -549,7 +490,6 @@ AS $$
 DECLARE
   _role TEXT;
 BEGIN
-  -- Sanitise: only allow known roles; anything else defaults to student
   _role := CASE
     WHEN NEW.raw_user_meta_data->>'role' IN ('teacher', 'student')
       THEN NEW.raw_user_meta_data->>'role'
@@ -563,13 +503,12 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     COALESCE(NEW.email, '')
   )
-  ON CONFLICT (id) DO NOTHING;   -- idempotent: safe to re-run
+  ON CONFLICT (id) DO NOTHING;
 
   RETURN NEW;
 END;
 $$;
 
--- Drop and recreate so re-running the script is safe
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
 CREATE TRIGGER on_auth_user_created
