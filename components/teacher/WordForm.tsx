@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { createWord, updateWord } from "@/app/actions/words";
+import { createWord, deleteWord, updateWord } from "@/app/actions/words";
 import { AudioUploader } from "./AudioUploader";
 import { ImageUploader } from "./ImageUploader";
 import type { Word, WordCategory, Difficulty } from "@/types";
@@ -49,6 +49,7 @@ export function WordForm({ word }: WordFormProps) {
 
   // Submit state
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -105,6 +106,26 @@ export function WordForm({ word }: WordFormProps) {
       // (soft router.push may serve a cached render before revalidatePath propagates)
       window.location.href = "/teacher/words";
     }
+  }
+
+  async function handleDelete() {
+    if (!word) return;
+    const shouldDelete = window.confirm(
+      `Delete "${word.english}" from Larry's active words list?`
+    );
+    if (!shouldDelete) return;
+
+    setDeleting(true);
+    setError(null);
+    const result = await deleteWord(word.id);
+
+    if (result?.error) {
+      setError(result.error);
+      setDeleting(false);
+      return;
+    }
+
+    window.location.href = "/teacher/words";
   }
 
   return (
@@ -294,11 +315,22 @@ export function WordForm({ word }: WordFormProps) {
       {/* Save */}
       <button
         type="submit"
-        disabled={saving}
+        disabled={saving || deleting}
         className="w-full bg-sky-500 active:bg-sky-700 disabled:bg-sky-300 text-white text-xl font-semibold py-5 rounded-2xl transition-colors active:scale-[0.97] min-h-[64px]"
       >
         {saving ? "Saving…" : isEditing ? "Save changes" : "Add word"}
       </button>
+
+      {isEditing && (
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={saving || deleting}
+          className="w-full bg-white border border-rose-200 text-rose-700 text-base font-semibold py-4 rounded-2xl transition-colors active:scale-[0.97] disabled:opacity-60 min-h-[56px]"
+        >
+          {deleting ? "Deleting…" : "Delete word"}
+        </button>
+      )}
     </form>
   );
 }
