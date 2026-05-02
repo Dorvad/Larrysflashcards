@@ -1,6 +1,7 @@
 import { PENDING_WORDS } from "@/lib/mock-data";
 import { TeacherPendingClient } from "./_client";
 import type { PendingWordData } from "./_client";
+import { unstable_noStore as noStore } from "next/cache";
 
 interface LoadResult {
   words: PendingWordData[];
@@ -9,6 +10,7 @@ interface LoadResult {
 }
 
 async function loadPendingWords(): Promise<LoadResult> {
+  noStore();
   const configured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );

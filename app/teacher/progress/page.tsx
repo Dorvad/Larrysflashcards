@@ -5,6 +5,8 @@ import {
   PROGRESS_STATS,
   NEXT_LESSON_SUGGESTIONS,
 } from "@/lib/mock-data";
+import { dbWordToWord } from "@/lib/supabase/mappers";
+import { unstable_noStore as noStore } from "next/cache";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
 import type { WordCategory } from "@/types";
@@ -69,16 +71,120 @@ function StrengthDots({ strength }: { strength: number }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ProgressPage() {
-  const weakWords = getWeakWords();
-  const categoryCounts = getCategoryCounts();
-  const total = PROGRESS_STATS.total;
+interface ProgressData {
+  weakWords: ReturnType<typeof getWeakWords>;
+  categoryCounts: { category: WordCategory; count: number }[];
+  total: number;
+  mastered: number;
+  practicing: number;
+  newWords: number;
+  strong: number;
+  suggestedWords: ReturnType<typeof getWeakWords>;
+  sessions: { id: string; date: string; wordCount: number; durationMinutes: number; scores: { knew: number; almost: number; forgot: number } }[];
+}
+
+async function loadProgressData(): Promise<ProgressData> {
+  noStore();
+  const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+  if (!configured) {
+    return {
+      weakWords: getWeakWords(),
+      categoryCounts: getCategoryCounts(),
+      total: PROGRESS_STATS.total,
+      mastered: PROGRESS_STATS.mastered,
+      practicing: PROGRESS_STATS.practicing,
+      newWords: PROGRESS_STATS.newWords,
+      strong: PROGRESS_STATS.strong,
+      suggestedWords: NEXT_LESSON_SUGGESTIONS,
+      sessions: PRACTICE_SESSIONS,
+    };
+  }
+
+  try {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const [wordsRes, reviewsRes] = await Promise.all([
+      supabase
+        .from("words")
+        .select("*")
+        .eq("is_active", true)
+        .eq("is_pending_approval", false),
+      supabase
+        .from("reviews")
+        .select("result, reviewed_at")
+        .order("reviewed_at", { ascending: false })
+        .limit(200),
+    ]);
+
+    const words = (wordsRes.data ?? []).map(dbWordToWord);
+    const total = words.length;
+    const newWords = words.filter((w) => w.strength <= 1).length;
+    const practicing = words.filter((w) => w.strength === 2 || w.strength === 3).length;
+    const strong = words.filter((w) => w.strength === 4).length;
+    const mastered = words.filter((w) => w.strength >= 5).length;
+    const weakWords = words.filter((w) => w.strength <= 2);
+
+    const catMap = new Map<WordCategory, number>();
+    for (const w of words) catMap.set(w.category, (catMap.get(w.category) ?? 0) + 1);
+    const categoryCounts = Array.from(catMap.entries()).map(([category, count]) => ({ category, count })).sort((a,b)=>b.count-a.count);
+
+    const reviewByDay = new Map();
+    for (const r of reviewsRes.data ?? []) {
+      const day = new Date(r.reviewed_at).toISOString().split("T")[0];
+      const entry = reviewByDay.get(day) ?? { knew: 0, almost: 0, forgot: 0, wordCount: 0 };
+      entry.wordCount++;
+      if (r.result === "knew") entry.knew++;
+      else if (r.result === "almost") entry.almost++;
+      else entry.forgot++;
+      reviewByDay.set(day, entry);
+    }
+
+    const sessions = Array.from(reviewByDay.entries()).slice(0, 8).map(([date, s]) => ({
+      id: date,
+      date,
+      wordCount: s.wordCount,
+      durationMinutes: Math.max(1, Math.round(s.wordCount / 3)),
+      scores: { knew: s.knew, almost: s.almost, forgot: s.forgot },
+    }));
+
+    return {
+      weakWords,
+      categoryCounts,
+      total,
+      mastered,
+      practicing,
+      newWords,
+      strong,
+      suggestedWords: weakWords.slice(0, 6),
+      sessions,
+    };
+  } catch {
+    return {
+      weakWords: getWeakWords(),
+      categoryCounts: getCategoryCounts(),
+      total: PROGRESS_STATS.total,
+      mastered: PROGRESS_STATS.mastered,
+      practicing: PROGRESS_STATS.practicing,
+      newWords: PROGRESS_STATS.newWords,
+      strong: PROGRESS_STATS.strong,
+      suggestedWords: NEXT_LESSON_SUGGESTIONS,
+      sessions: PRACTICE_SESSIONS,
+    };
+  }
+}
+
+export default async function ProgressPage() {
+  const data = await loadProgressData();
+  const weakWords = data.weakWords;
+  const categoryCounts = data.categoryCounts;
+  const total = data.total;
 
   const breakdownCounts: Record<string, number> = {
-    new: PROGRESS_STATS.newWords,
-    practicing: PROGRESS_STATS.practicing,
-    strong: PROGRESS_STATS.strong,
-    mastered: PROGRESS_STATS.mastered,
+    new: data.newWords,
+    practicing: data.practicing,
+    strong: data.strong,
+    mastered: data.mastered,
   };
 
   return (
@@ -91,10 +197,10 @@ export default function ProgressPage() {
 
       {/* 1. Summary stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryCard value={PROGRESS_STATS.total} label="Words" />
-        <SummaryCard value={PROGRESS_STATS.mastered} label="Mastered" />
-        <SummaryCard value={PROGRESS_STATS.practicing} label="Practicing" />
-        <SummaryCard value={PROGRESS_STATS.newWords} label="New" />
+        <SummaryCard value={data.total} label="Words" />
+        <SummaryCard value={data.mastered} label="Mastered" />
+        <SummaryCard value={data.practicing} label="Practicing" />
+        <SummaryCard value={data.newWords} label="New" />
       </div>
 
       {/* 2. Vocabulary breakdown */}
@@ -178,7 +284,7 @@ export default function ProgressPage() {
         <p className="text-sm text-gray-500 mb-3">
           These words showed up repeatedly as difficult — worth reviewing together.
         </p>
-        {NEXT_LESSON_SUGGESTIONS.map((word) => (
+        {data.suggestedWords.map((word) => (
           <div
             key={word.id}
             className="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm mb-2"
@@ -198,7 +304,7 @@ export default function ProgressPage() {
       {/* 6. Recent sessions */}
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Practice sessions</h2>
-        {PRACTICE_SESSIONS.map((session) => {
+        {data.sessions.map((session) => {
           const knewPct = session.wordCount > 0
             ? session.scores.knew / session.wordCount
             : 0;
