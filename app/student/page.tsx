@@ -21,7 +21,7 @@ function getDateLabel() {
 }
 
 interface StudentData {
-  allWords: Word[];
+  dueCount: number;
   recentlyAdded: Word[];
 }
 
@@ -31,29 +31,48 @@ async function loadStudentData(): Promise<StudentData> {
   );
 
   if (!configured) {
-    return { allWords: getDueToday(), recentlyAdded: getRecentlyAdded() };
+    return { dueCount: getDueToday().length, recentlyAdded: getRecentlyAdded() };
   }
 
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("words")
-      .select("*")
-      .eq("is_active", true)
-      .eq("is_pending_approval", false)
-      .order("created_at", { ascending: false });
+    const now = new Date().toISOString();
 
-    const words = (data ?? []).map(dbWordToWord);
-    return { allWords: words, recentlyAdded: words.slice(0, 8) };
+    const [neverReviewedRes, dueNowRes, recentRes] = await Promise.all([
+      supabase
+        .from("words")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .is("next_review_at", null),
+      supabase
+        .from("words")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .not("next_review_at", "is", null)
+        .lte("next_review_at", now),
+      supabase
+        .from("words")
+        .select("*")
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
+
+    return {
+      dueCount: (neverReviewedRes.count ?? 0) + (dueNowRes.count ?? 0),
+      recentlyAdded: (recentRes.data ?? []).map(dbWordToWord),
+    };
   } catch {
-    return { allWords: getDueToday(), recentlyAdded: getRecentlyAdded() };
+    return { dueCount: getDueToday().length, recentlyAdded: getRecentlyAdded() };
   }
 }
 
 export default async function StudentHomePage() {
-  const { allWords, recentlyAdded } = await loadStudentData();
-  const count = allWords.length;
+  const { dueCount: count, recentlyAdded } = await loadStudentData();
 
   return (
     <div className="min-h-screen">

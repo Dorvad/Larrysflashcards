@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Upload } from "lucide-react";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
 import EmptyState from "@/components/shared/EmptyState";
@@ -74,13 +74,22 @@ export function TeacherWordsClient({
             {words.length}
           </span>
         </h1>
-        <Link
-          href="/teacher/words/new"
-          className="bg-sky-500 active:bg-sky-700 text-white rounded-xl px-5 py-3 flex items-center gap-2 text-base font-semibold transition-colors min-h-[48px]"
-        >
-          <Plus className="w-4 h-4" />
-          Add word
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/teacher/words/import"
+            className="bg-white border border-gray-200 text-gray-700 rounded-xl px-4 py-3 flex items-center gap-2 text-base font-semibold transition-colors min-h-[48px] active:bg-gray-50"
+          >
+            <Upload className="w-4 h-4" />
+            Import CSV
+          </Link>
+          <Link
+            href="/teacher/words/new"
+            className="bg-sky-500 active:bg-sky-700 text-white rounded-xl px-5 py-3 flex items-center gap-2 text-base font-semibold transition-colors min-h-[48px]"
+          >
+            <Plus className="w-4 h-4" />
+            Add word
+          </Link>
+        </div>
       </div>
 
       {/* Search */}

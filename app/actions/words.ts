@@ -207,6 +207,103 @@ export async function deleteWord(id: string): Promise<WordActionResult> {
   }
 }
 
+export interface ImportRow {
+  hebrew: string;
+  hebrewNiqqud?: string;
+  transliteration?: string;
+  english: string;
+  exampleHebrew?: string;
+  exampleEnglish?: string;
+  category?: string;
+  difficulty?: string;
+  teacherNote?: string;
+}
+
+export interface ImportResult {
+  imported: number;
+  errors: { row: number; message: string }[];
+}
+
+export async function importWords(rows: ImportRow[]): Promise<ImportResult> {
+  const errors: { row: number; message: string }[] = [];
+  let imported = 0;
+
+  try {
+    const { user } = await ensureTeacher();
+    const studentId = await getStudentId(user.id);
+    const admin = createAdminClient();
+
+    const VALID_CATEGORIES = [
+      "Greetings","Food & Drink","Daily life","Travel","Useful phrases",
+      "Verbs","Jewish holidays","Lesson words","Numbers","Family",
+    ];
+    const VALID_DIFFICULTIES = ["easy", "medium", "hard"];
+
+    // Process in chunks of 50 to avoid timeouts
+    const CHUNK = 50;
+    for (let start = 0; start < rows.length; start += CHUNK) {
+      const chunk = rows.slice(start, start + CHUNK);
+      const inserts = chunk
+        .map((r, i) => {
+          const rowNum = start + i + 1;
+          if (!r.hebrew?.trim()) {
+            errors.push({ row: rowNum, message: "Hebrew is required" });
+            return null;
+          }
+          if (!r.english?.trim()) {
+            errors.push({ row: rowNum, message: "English meaning is required" });
+            return null;
+          }
+          const category = VALID_CATEGORIES.includes(r.category ?? "")
+            ? r.category
+            : "Lesson words";
+          const difficulty = VALID_DIFFICULTIES.includes(r.difficulty ?? "")
+            ? r.difficulty
+            : "medium";
+          return {
+            student_id: studentId,
+            created_by: user.id,
+            hebrew: r.hebrew.trim(),
+            hebrew_niqqud: r.hebrewNiqqud?.trim() || r.hebrew.trim(),
+            transliteration: r.transliteration?.trim() || null,
+            meaning_en: r.english.trim(),
+            example_he: r.exampleHebrew?.trim() || null,
+            example_en: r.exampleEnglish?.trim() || null,
+            category,
+            difficulty,
+            teacher_notes: r.teacherNote?.trim() || null,
+            is_active: true,
+            is_pending_approval: false,
+          };
+        })
+        .filter(Boolean);
+
+      if (inserts.length > 0) {
+        const { error } = await admin.from("words").insert(inserts);
+        if (error) {
+          // Mark entire chunk as errored
+          for (let i = start; i < start + chunk.length; i++) {
+            errors.push({ row: i + 1, message: error.message });
+          }
+        } else {
+          imported += inserts.length;
+        }
+      }
+    }
+
+    revalidatePath("/teacher/words");
+    revalidatePath("/student/words");
+    revalidatePath("/student");
+  } catch (e) {
+    return {
+      imported: 0,
+      errors: [{ row: 0, message: e instanceof Error ? e.message : "Import failed" }],
+    };
+  }
+
+  return { imported, errors };
+}
+
 export async function suggestWord(formData: FormData): Promise<WordActionResult> {
   try {
     const supabase = await createClient();
