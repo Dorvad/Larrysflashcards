@@ -11,6 +11,7 @@ import { dbWordToWord } from "@/lib/supabase/mappers";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
 import type { Word } from "@/types";
+import { unstable_noStore as noStore } from "next/cache";
 
 interface DashboardData {
   activeCount: number;
@@ -23,6 +24,7 @@ interface DashboardData {
 }
 
 async function loadDashboard(): Promise<DashboardData> {
+  noStore();
   const configured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
