@@ -5,6 +5,54 @@ import { ChevronRight, Flame } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { Word } from "@/types";
 
+const DAILY_QUOTES = [
+  {
+    text: "It does not matter how slowly you go as long as you do not stop.",
+    author: "Confucius",
+  },
+  {
+    text: "Ever tried. Ever failed. No matter. Try again. Fail again. Fail better.",
+    author: "Samuel Beckett",
+  },
+  {
+    text: "The beautiful thing about learning is nobody can take it away from you.",
+    author: "B.B. King",
+  },
+  {
+    text: "Becoming is better than being.",
+    author: "Carol S. Dweck",
+  },
+  {
+    text: "The limits of my language mean the limits of my world.",
+    author: "Ludwig Wittgenstein",
+  },
+  {
+    text: "Learning another language is not only learning different words for the same things, but learning another way to think about things.",
+    author: "Flora Lewis",
+  },
+  {
+    text: "One language sets you in a corridor for life. Two languages open every door along the way.",
+    author: "Frank Smith",
+  },
+  {
+    text: "He who does not know foreign languages does not know anything about his own.",
+    author: "Johann Wolfgang von Goethe",
+  },
+  {
+    text: "It is astonishing how much enjoyment one can get out of a language that one understands imperfectly.",
+    author: "Basil Gildersleeve",
+  },
+  {
+    text: "Do you know what a foreign accent is? It's a sign of bravery.",
+    author: "Amy Chua",
+  },
+];
+
+function getDailyQuote() {
+  const dayIndex = Math.floor(Date.now() / 86_400_000);
+  return DAILY_QUOTES[dayIndex % DAILY_QUOTES.length];
+}
+
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -73,6 +121,7 @@ async function loadStudentData(): Promise<StudentData> {
 
 export default async function StudentHomePage() {
   const { dueCount: count, recentlyAdded } = await loadStudentData();
+  const quote = getDailyQuote();
 
   return (
     <div className="min-h-screen">
@@ -111,6 +160,29 @@ export default async function StudentHomePage() {
             >
               Start Practice
             </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Daily quote ───────────────────────────────────────── */}
+      <div className="px-5 mt-5 animate-fade-slide-up delay-100">
+        <div className="relative bg-amber-50 rounded-3xl px-6 pt-5 pb-6 overflow-hidden border border-amber-100/80">
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-amber-200/40 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-orange-200/30 rounded-full blur-xl pointer-events-none" />
+
+          <div className="relative">
+            <span
+              aria-hidden="true"
+              className="block font-serif text-[72px] leading-none text-amber-200 select-none -mb-3"
+            >
+              &ldquo;
+            </span>
+            <p className="text-gray-800 text-lg font-medium leading-snug">
+              {quote.text}
+            </p>
+            <p className="mt-3 text-sm font-semibold text-amber-600">
+              — {quote.author}
+            </p>
           </div>
         </div>
       </div>
