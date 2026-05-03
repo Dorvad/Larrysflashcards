@@ -1,17 +1,32 @@
 import Link from "next/link";
-import type { Word } from "@/types";
+import type { Word, WordCategory } from "@/types";
 import StatusBadge from "@/components/shared/StatusBadge";
+
+// Left-border accent color per category — ties list items back to their category card color
+const CATEGORY_ACCENT: Partial<Record<WordCategory, string>> = {
+  "Greetings":       "border-l-sky-400",
+  "Food & Drink":    "border-l-orange-400",
+  "Daily life":      "border-l-emerald-400",
+  "Travel":          "border-l-teal-400",
+  "Useful phrases":  "border-l-violet-400",
+  "Verbs":           "border-l-amber-400",
+  "Jewish holidays": "border-l-yellow-400",
+  "Lesson words":    "border-l-blue-400",
+  "Numbers":         "border-l-rose-400",
+  "Family":          "border-l-pink-400",
+};
 
 interface WordCardProps {
   word: Word;
-  onClick?: () => void;
 }
 
 export default function WordCard({ word }: WordCardProps) {
+  const accentBorder = CATEGORY_ACCENT[word.category] ?? "border-l-gray-200";
+
   return (
     <Link href={`/student/words/${word.id}`} className="block">
       <div
-        className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 min-h-[80px] cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]"
+        className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 border-l-4 ${accentBorder} min-h-[80px] cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]`}
       >
         <div className="flex flex-row justify-between items-start gap-3">
           {/* Left: Hebrew + transliteration */}

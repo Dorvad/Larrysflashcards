@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Volume2, Play, Pause } from "lucide-react";
+import { Volume2, Play, Pause, X, Minus, Check } from "lucide-react";
 import HebrewText from "@/components/shared/HebrewText";
 import type { Word, CardResponse } from "@/types";
 
@@ -67,7 +67,7 @@ export function PracticeCard({
         )}
 
         {/* Question face */}
-        <div className="px-6 pt-8 pb-6 text-center flex flex-col items-center gap-5">
+        <div className="bg-gradient-to-b from-sky-50/80 to-white px-6 pt-8 pb-6 text-center flex flex-col items-center gap-5">
           {word.audioUrl ? (
             <button
               type="button"
@@ -152,25 +152,28 @@ export function PracticeCard({
               <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3">
                 <ResponseButton
                   onClick={() => onResponse("forgot")}
-                  bg="bg-rose-50 active:bg-rose-100"
-                  border="border-rose-200"
-                  textColor="text-rose-700"
+                  bg="bg-rose-100 active:bg-rose-200"
+                  border="border-rose-300"
+                  textColor="text-rose-800"
+                  icon={<X className="w-5 h-5" />}
                   label="I forgot"
                   sublabel="Try again soon"
                 />
                 <ResponseButton
                   onClick={() => onResponse("almost")}
-                  bg="bg-amber-50 active:bg-amber-100"
-                  border="border-amber-200"
-                  textColor="text-amber-700"
+                  bg="bg-amber-100 active:bg-amber-200"
+                  border="border-amber-300"
+                  textColor="text-amber-800"
+                  icon={<Minus className="w-5 h-5" />}
                   label="Almost"
                   sublabel="Getting there"
                 />
                 <ResponseButton
                   onClick={() => onResponse("knew")}
-                  bg="bg-emerald-50 active:bg-emerald-100"
-                  border="border-emerald-200"
-                  textColor="text-emerald-700"
+                  bg="bg-emerald-100 active:bg-emerald-200"
+                  border="border-emerald-300"
+                  textColor="text-emerald-800"
+                  icon={<Check className="w-5 h-5" />}
                   label="I knew it!"
                   sublabel="Well done"
                 />
@@ -197,6 +200,7 @@ function ResponseButton({
   bg,
   border,
   textColor,
+  icon,
   label,
   sublabel,
 }: {
@@ -204,16 +208,18 @@ function ResponseButton({
   bg: string;
   border: string;
   textColor: string;
+  icon: React.ReactNode;
   label: string;
   sublabel: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 w-full rounded-2xl py-5 px-3 border transition-all duration-100 active:scale-[0.96] min-h-[72px] sm:min-h-[88px] ${bg} ${border}`}
+      className={`flex flex-col items-center justify-center gap-1.5 w-full rounded-2xl py-5 px-3 border transition-all duration-100 active:scale-[0.96] min-h-[72px] sm:min-h-[88px] ${bg} ${border}`}
     >
+      <span className={`${textColor}`}>{icon}</span>
       <span className={`text-lg font-bold leading-tight ${textColor}`}>{label}</span>
-      <span className="text-xs text-gray-400 leading-tight">{sublabel}</span>
+      <span className="text-xs text-gray-500 leading-tight">{sublabel}</span>
     </button>
   );
 }

@@ -59,7 +59,7 @@ export default async function WordDetailPage({ params }: { params: { id: string 
           </div>
         )}
 
-        <div className="p-6 text-center flex flex-col items-center gap-3">
+        <div className={`${word.imageUrl ? "" : "bg-gradient-to-b from-sky-50/70 to-white"} p-6 text-center flex flex-col items-center gap-3`}>
           <HebrewText size="xl">{word.hebrewNiqqud}</HebrewText>
 
           {word.hebrewPlain && word.hebrewPlain !== word.hebrewNiqqud && (
@@ -80,7 +80,7 @@ export default async function WordDetailPage({ params }: { params: { id: string 
 
           <div className="flex flex-wrap gap-2 justify-center mt-1">
             <StatusBadge status={word.status} />
-            <span className="text-sm bg-gray-100 text-gray-500 rounded-full px-3 py-1">
+            <span className="text-sm bg-sky-50 text-sky-600 border border-sky-100 rounded-full px-3 py-1 font-medium">
               {word.category}
             </span>
           </div>
