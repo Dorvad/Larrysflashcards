@@ -8,6 +8,7 @@ import {
   NEXT_LESSON_SUGGESTIONS,
 } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { AlertCircle } from "lucide-react";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
 import type { Word } from "@/types";
@@ -22,6 +23,7 @@ interface DashboardData {
   suggestedWords: Word[];
   recentSessions: { id: string; date: string; wordCount: number; knew: number; total: number }[];
   demoMode: boolean;
+  error?: string;
 }
 
 async function loadDashboard(): Promise<DashboardData> {
@@ -60,27 +62,42 @@ async function loadDashboard(): Promise<DashboardData> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const now = new Date().toISOString();
 
-    const [
-      activeRes,
-      pendingRes,
-      strugglingRes,
-      neverReviewedRes,
-      dueNowRes,
-      pendingWordsRes,
-      suggestedRes,
-      reviewsRes,
-    ] = await Promise.all([
-        supabase
-          .from("words")
-          .select("*", { count: "exact", head: true })
-          .eq("is_active", true)
-          .eq("is_pending_approval", false),
-        supabase
-          .from("words")
-          .select("*", { count: "exact", head: true })
-          .eq("is_pending_approval", true),
+    // ── Core queries (always needed — never fall back to mock) ─────────────
+    const [activeRes, pendingRes, pendingWordsRes, suggestedRes] = await Promise.all([
+      supabase
+        .from("words")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("is_pending_approval", false),
+      supabase
+        .from("words")
+        .select("*", { count: "exact", head: true })
+        .eq("is_pending_approval", true),
+      supabase
+        .from("words")
+        .select("id, hebrew, hebrew_niqqud, meaning_en, example_en, teacher_notes, created_at")
+        .eq("is_pending_approval", true)
+        .order("created_at", { ascending: false })
+        .limit(3),
+      supabase
+        .from("words")
+        .select("*")
+        .eq("is_active", true)
+        .eq("is_pending_approval", false)
+        .lte("current_strength", 2)
+        .order("current_strength", { ascending: true })
+        .limit(4),
+    ]);
+
+    // ── Optional queries (schema-dependent — graceful fallback to zeros) ───
+    let strugglingCount = 0;
+    let dueCount = 0;
+    let recentSessions: { id: string; date: string; wordCount: number; knew: number; total: number }[] = [];
+
+    try {
+      const now = new Date().toISOString();
+      const [strugglingRes, neverReviewedRes, dueNowRes, reviewsRes] = await Promise.all([
         supabase
           .from("words")
           .select("*", { count: "exact", head: true })
@@ -101,50 +118,41 @@ async function loadDashboard(): Promise<DashboardData> {
           .not("next_review_at", "is", null)
           .lte("next_review_at", now),
         supabase
-          .from("words")
-          .select("id, hebrew, hebrew_niqqud, meaning_en, example_en, teacher_notes, created_at")
-          .eq("is_pending_approval", true)
-          .order("created_at", { ascending: false })
-          .limit(2),
-        supabase
-          .from("words")
-          .select("*")
-          .eq("is_active", true)
-          .eq("is_pending_approval", false)
-          .lte("current_strength", 2)
-          .order("current_strength", { ascending: true })
-          .limit(4),
-        supabase
           .from("reviews")
           .select("result, reviewed_at")
           .order("reviewed_at", { ascending: false })
           .limit(100),
       ]);
 
-    // Group recent reviews by calendar day to simulate sessions
-    const reviewsByDay = new Map<string, { knew: number; total: number }>();
-    for (const r of reviewsRes.data ?? []) {
-      const day = new Date(r.reviewed_at).toISOString().split("T")[0];
-      const existing = reviewsByDay.get(day) ?? { knew: 0, total: 0 };
-      existing.total++;
-      if (r.result === "knew") existing.knew++;
-      reviewsByDay.set(day, existing);
+      strugglingCount = strugglingRes.count ?? 0;
+      dueCount = (neverReviewedRes.count ?? 0) + (dueNowRes.count ?? 0);
+
+      const reviewsByDay = new Map<string, { knew: number; total: number }>();
+      for (const r of reviewsRes.data ?? []) {
+        const day = new Date(r.reviewed_at).toISOString().split("T")[0];
+        const existing = reviewsByDay.get(day) ?? { knew: 0, total: 0 };
+        existing.total++;
+        if (r.result === "knew") existing.knew++;
+        reviewsByDay.set(day, existing);
+      }
+      recentSessions = Array.from(reviewsByDay.entries())
+        .slice(0, 3)
+        .map(([date, stats]) => ({
+          id: date,
+          date,
+          wordCount: stats.total,
+          knew: stats.knew,
+          total: stats.total,
+        }));
+    } catch {
+      // optional stats unavailable — pending data is still shown correctly
     }
-    const recentSessions = Array.from(reviewsByDay.entries())
-      .slice(0, 3)
-      .map(([date, stats]) => ({
-        id: date,
-        date,
-        wordCount: stats.total,
-        knew: stats.knew,
-        total: stats.total,
-      }));
 
     return {
       activeCount: activeRes.count ?? 0,
       pendingCount: pendingRes.count ?? 0,
-      strugglingCount: strugglingRes.count ?? 0,
-      dueCount: (neverReviewedRes.count ?? 0) + (dueNowRes.count ?? 0),
+      strugglingCount,
+      dueCount,
       pendingWords: (pendingWordsRes.data ?? []).map((w) => ({
         id: w.id,
         hebrew: w.hebrew_niqqud ?? w.hebrew ?? "",
@@ -159,18 +167,17 @@ async function loadDashboard(): Promise<DashboardData> {
       recentSessions,
       demoMode: false,
     };
-  } catch {
-    const dueToday = getDueToday();
-    const weakWords = getWeakWords();
+  } catch (e) {
     return {
-      activeCount: WORDS.length,
-      pendingCount: PENDING_WORDS.length,
-      strugglingCount: weakWords.length,
-      dueCount: dueToday.length,
+      activeCount: 0,
+      pendingCount: 0,
+      strugglingCount: 0,
+      dueCount: 0,
       pendingWords: [],
-      suggestedWords: NEXT_LESSON_SUGGESTIONS.slice(0, 4),
+      suggestedWords: [],
       recentSessions: [],
       demoMode: false,
+      error: e instanceof Error ? e.message : "Could not load dashboard",
     };
   }
 }
@@ -192,6 +199,17 @@ export default async function TeacherDashboard() {
           )}
         </p>
       </div>
+
+      {/* Error banner */}
+      {data.error && (
+        <div className="mb-6 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-rose-800">Couldn&rsquo;t load dashboard</p>
+            <p className="text-xs text-rose-600 mt-0.5 font-mono">{data.error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

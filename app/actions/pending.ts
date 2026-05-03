@@ -33,9 +33,7 @@ export async function approveWord(wordId: string): Promise<PendingActionResult> 
       .update({ is_pending_approval: false, is_active: true })
       .eq("id", wordId);
     if (error) return { error: error.message };
-    revalidatePath("/teacher/pending");
-    revalidatePath("/teacher");
-    revalidatePath("/teacher/progress");
+    revalidatePath("/teacher", "layout");
     revalidatePath("/student/words");
     return { wordId };
   } catch (e) {
@@ -52,9 +50,7 @@ export async function rejectWord(wordId: string): Promise<PendingActionResult> {
       .update({ is_pending_approval: false, is_active: false })
       .eq("id", wordId);
     if (error) return { error: error.message };
-    revalidatePath("/teacher/pending");
-    revalidatePath("/teacher");
-    revalidatePath("/teacher/progress");
+    revalidatePath("/teacher", "layout");
     return { wordId };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Could not decline word." };

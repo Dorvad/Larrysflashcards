@@ -348,8 +348,7 @@ export async function suggestWord(formData: FormData): Promise<WordActionResult>
 
     if (error) return { error: error.message };
 
-    revalidatePath("/teacher/pending");
-    revalidatePath("/teacher");
+    revalidatePath("/teacher", "layout");
     return { wordId: data?.id };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Could not send suggestion." };
