@@ -17,6 +17,7 @@ interface DashboardData {
   activeCount: number;
   pendingCount: number;
   strugglingCount: number;
+  dueCount: number;
   pendingWords: { id: string; hebrew: string; description: string; context: string; submittedAt: string }[];
   suggestedWords: Word[];
   recentSessions: { id: string; date: string; wordCount: number; knew: number; total: number }[];
@@ -36,6 +37,7 @@ async function loadDashboard(): Promise<DashboardData> {
       activeCount: WORDS.length,
       pendingCount: PENDING_WORDS.length,
       strugglingCount: weakWords.length,
+      dueCount: dueToday.length,
       pendingWords: PENDING_WORDS.slice(0, 2).map((w) => ({
         id: w.id,
         hebrew: w.hebrewGuess ?? "",
@@ -58,9 +60,18 @@ async function loadDashboard(): Promise<DashboardData> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
+    const now = new Date().toISOString();
 
-    const [activeRes, pendingRes, strugglingRes, pendingWordsRes, suggestedRes, reviewsRes] =
-      await Promise.all([
+    const [
+      activeRes,
+      pendingRes,
+      strugglingRes,
+      neverReviewedRes,
+      dueNowRes,
+      pendingWordsRes,
+      suggestedRes,
+      reviewsRes,
+    ] = await Promise.all([
         supabase
           .from("words")
           .select("*", { count: "exact", head: true })
@@ -76,6 +87,19 @@ async function loadDashboard(): Promise<DashboardData> {
           .eq("is_active", true)
           .eq("is_pending_approval", false)
           .lte("current_strength", 2),
+        supabase
+          .from("words")
+          .select("*", { count: "exact", head: true })
+          .eq("is_active", true)
+          .eq("is_pending_approval", false)
+          .is("next_review_at", null),
+        supabase
+          .from("words")
+          .select("*", { count: "exact", head: true })
+          .eq("is_active", true)
+          .eq("is_pending_approval", false)
+          .not("next_review_at", "is", null)
+          .lte("next_review_at", now),
         supabase
           .from("words")
           .select("id, hebrew, hebrew_niqqud, meaning_en, example_en, teacher_notes, created_at")
@@ -120,6 +144,7 @@ async function loadDashboard(): Promise<DashboardData> {
       activeCount: activeRes.count ?? 0,
       pendingCount: pendingRes.count ?? 0,
       strugglingCount: strugglingRes.count ?? 0,
+      dueCount: (neverReviewedRes.count ?? 0) + (dueNowRes.count ?? 0),
       pendingWords: (pendingWordsRes.data ?? []).map((w) => ({
         id: w.id,
         hebrew: w.hebrew_niqqud ?? w.hebrew ?? "",
@@ -141,6 +166,7 @@ async function loadDashboard(): Promise<DashboardData> {
       activeCount: WORDS.length,
       pendingCount: PENDING_WORDS.length,
       strugglingCount: weakWords.length,
+      dueCount: dueToday.length,
       pendingWords: [],
       suggestedWords: NEXT_LESSON_SUGGESTIONS.slice(0, 4),
       recentSessions: [],
@@ -172,7 +198,7 @@ export default async function TeacherDashboard() {
         <StatCard value={data.activeCount} label="Active words" />
         <StatCard value={data.strugglingCount} label="Struggling" />
         <StatCard value={data.pendingCount} label="Pending" href="/teacher/pending" />
-        <StatCard value={0} label="Due today" />
+        <StatCard value={data.dueCount} label="Due today" />
       </div>
 
       {/* Pending words from Larry */}

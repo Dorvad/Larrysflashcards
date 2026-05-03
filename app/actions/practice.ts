@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -91,6 +92,10 @@ export async function submitReview(
 
     if (reviewRes.error) return { error: reviewRes.error.message };
     if (wordRes.error) return { error: wordRes.error.message };
+
+    revalidatePath("/teacher/progress");
+    revalidatePath("/teacher");
+    revalidatePath("/student");
 
     return {};
   } catch (e) {

@@ -35,6 +35,7 @@ export async function approveWord(wordId: string): Promise<PendingActionResult> 
     if (error) return { error: error.message };
     revalidatePath("/teacher/pending");
     revalidatePath("/teacher");
+    revalidatePath("/teacher/progress");
     revalidatePath("/student/words");
     return { wordId };
   } catch (e) {
@@ -53,6 +54,7 @@ export async function rejectWord(wordId: string): Promise<PendingActionResult> {
     if (error) return { error: error.message };
     revalidatePath("/teacher/pending");
     revalidatePath("/teacher");
+    revalidatePath("/teacher/progress");
     return { wordId };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Could not decline word." };

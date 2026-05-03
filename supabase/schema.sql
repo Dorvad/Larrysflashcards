@@ -135,6 +135,9 @@ CREATE TABLE IF NOT EXISTS public.words (
   current_strength     INTEGER     NOT NULL DEFAULT 0
                          CHECK (current_strength BETWEEN 0 AND 5),
 
+  last_reviewed        TIMESTAMPTZ,
+  next_review_at       TIMESTAMPTZ,
+
   is_active            BOOLEAN     NOT NULL DEFAULT TRUE,
   is_pending_approval  BOOLEAN     NOT NULL DEFAULT FALSE,
   submitted_by_student BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -286,6 +289,10 @@ CREATE INDEX IF NOT EXISTS idx_reviews_reviewed_at
 CREATE INDEX IF NOT EXISTS idx_reviews_next_review
   ON public.reviews (student_id, next_review_at)
   WHERE next_review_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_words_next_review
+  ON public.words (next_review_at)
+  WHERE is_active = TRUE AND next_review_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_weekly_focus_student_week
   ON public.weekly_focus (student_id, week_start_date DESC);
@@ -570,4 +577,10 @@ ALTER TABLE public.words
   ADD COLUMN IF NOT EXISTS difficulty        TEXT NOT NULL DEFAULT 'medium'
     CHECK (difficulty IN ('easy', 'medium', 'hard')),
   ADD COLUMN IF NOT EXISTS audio_example_url TEXT,
-  ADD COLUMN IF NOT EXISTS image_url         TEXT;
+  ADD COLUMN IF NOT EXISTS image_url         TEXT,
+  ADD COLUMN IF NOT EXISTS last_reviewed     TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS next_review_at    TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_words_next_review
+  ON public.words (next_review_at)
+  WHERE is_active = TRUE AND next_review_at IS NOT NULL;
