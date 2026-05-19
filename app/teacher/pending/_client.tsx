@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, X } from "lucide-react";
-import { approveWord, rejectWord } from "@/app/actions/pending";
+import { Pencil, X } from "lucide-react";
+import Link from "next/link";
+import { rejectWord } from "@/app/actions/pending";
 import EmptyState from "@/components/shared/EmptyState";
 import HebrewText from "@/components/shared/HebrewText";
 
@@ -15,24 +16,12 @@ export interface PendingWordData {
   submittedAt: string;
 }
 
-type LocalStatus = "pending" | "approved" | "declined" | "error";
+type LocalStatus = "pending" | "declined" | "error";
 
 function PendingCard({ word }: { word: PendingWordData }) {
   const [status, setStatus] = useState<LocalStatus>("pending");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  function handleApprove() {
-    startTransition(async () => {
-      const result = await approveWord(word.id);
-      if (result.error) {
-        setErrorMsg(result.error);
-        setStatus("error");
-      } else {
-        setStatus("approved");
-      }
-    });
-  }
 
   function handleDecline() {
     startTransition(async () => {
@@ -49,17 +38,12 @@ function PendingCard({ word }: { word: PendingWordData }) {
   return (
     <div
       className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 transition-all ${
-        status === "approved" ? "border-l-4 border-l-emerald-400" : ""
-      } ${status === "declined" ? "opacity-40" : ""}`}
+        status === "declined" ? "opacity-40" : ""
+      }`}
     >
       {/* Top row: date + status badge */}
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-400">{word.submittedAt}</p>
-        {status === "approved" && (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-700">
-            Approved
-          </span>
-        )}
         {status === "declined" && (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-500">
             Declined
@@ -98,23 +82,16 @@ function PendingCard({ word }: { word: PendingWordData }) {
       {/* Error */}
       {errorMsg && <p className="text-sm text-rose-600 mt-2">{errorMsg}</p>}
 
-      {/* Approved confirmation */}
-      {status === "approved" && (
-        <p className="text-sm text-emerald-700 mt-3 font-medium">Added to Larry&rsquo;s words</p>
-      )}
-
       {/* Action buttons */}
       {status === "pending" && (
         <div className="flex flex-col sm:flex-row gap-3 mt-5">
-          <button
-            type="button"
-            onClick={handleApprove}
-            disabled={isPending}
-            className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-5 py-4 flex items-center justify-center gap-2 text-base font-semibold active:bg-emerald-200 active:scale-[0.97] transition-all duration-100 min-h-[56px] disabled:opacity-50"
+          <Link
+            href={`/teacher/words/${word.id}/edit`}
+            className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-5 py-4 flex items-center justify-center gap-2 text-base font-semibold active:bg-emerald-200 active:scale-[0.97] transition-all duration-100 min-h-[56px]"
           >
-            <Check className="w-5 h-5" />
-            {isPending ? "Saving…" : "Approve"}
-          </button>
+            <Pencil className="w-5 h-5" />
+            Add to vocabulary
+          </Link>
           <button
             type="button"
             onClick={handleDecline}

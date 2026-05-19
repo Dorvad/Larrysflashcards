@@ -31,15 +31,30 @@ export default async function EditWordPage({ params }: { params: { id: string } 
   const word = await loadWord(params.id);
   if (!word) notFound();
 
+  const isPending = word.isPendingApproval;
+
   return (
     <div>
       <Link
-        href="/teacher/words"
+        href={isPending ? "/teacher/pending" : "/teacher/words"}
         className="inline-flex items-center gap-2 text-base text-gray-500 min-h-[48px] mb-6 -ml-1 px-1"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to words
+        {isPending ? "Back to pending" : "Back to words"}
       </Link>
+
+      {/* Banner for student-suggested words */}
+      {isPending && (
+        <div className="mb-6 bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <span className="text-xl shrink-0" aria-hidden="true">💌</span>
+          <div>
+            <p className="text-sm font-semibold text-sky-800">Larry suggested this word</p>
+            <p className="text-sm text-sky-700 mt-0.5">
+              Fill in the Hebrew and details below, then save — it will be added to Larry&rsquo;s vocabulary.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-start gap-4 mb-2">
         {word.imageUrl && (
@@ -55,9 +70,11 @@ export default async function EditWordPage({ params }: { params: { id: string } 
           <p className="text-lg text-gray-500 mt-1">{word.english}</p>
         </div>
       </div>
-      <div className="mb-8">
-        <StatusBadge status={word.status} />
-      </div>
+      {!isPending && (
+        <div className="mb-8">
+          <StatusBadge status={word.status} />
+        </div>
+      )}
 
       <WordForm word={word} />
     </div>

@@ -153,6 +153,10 @@ export async function updateWord(
       category: (formData.get("category") as string) || null,
       difficulty: formData.get("difficulty") || "medium",
       teacher_notes: (formData.get("teacherNote") as string) || null,
+      // Activate the word when a teacher saves — handles both regular edits
+      // and student suggestions (which start as is_active=false, is_pending_approval=true)
+      is_active: true,
+      is_pending_approval: false,
     };
 
     const wordAudioFile = formData.get("audioWord") as File | null;
@@ -183,8 +187,7 @@ export async function updateWord(
     const { error } = await admin.from("words").update(updates).eq("id", id);
     if (error) return { error: error.message };
 
-    revalidatePath("/teacher/words");
-    revalidatePath(`/teacher/words/${id}/edit`);
+    revalidatePath("/teacher", "layout");
     revalidatePath("/student/words");
     return { wordId: id };
   } catch (e) {
