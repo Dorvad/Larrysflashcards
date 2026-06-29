@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PracticeCard } from "@/components/student/PracticeCard";
+import { submitReview } from "@/app/actions/practice";
 import type { CardResponse, Word } from "@/types";
 import { X, PartyPopper } from "lucide-react";
 
@@ -16,26 +18,43 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 export function StudentPracticeClient({ words }: { words: Word[] }) {
+  const router = useRouter();
   const [cards, setCards] = useState<Word[]>(() => shuffleArray(words));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<CardResponse[]>([]);
   const [phase, setPhase] = useState<"quiz" | "complete">("quiz");
+  const [saving, setSaving] = useState(false);
 
-  function handleResponse(response: CardResponse) {
+  async function handleResponse(response: CardResponse) {
+    const currentWord = cards[currentIndex];
+    setSaving(true);
+
+    const result = await submitReview(
+      currentWord.id,
+      response,
+      currentWord.strength
+    );
+
+    setSaving(false);
+
+    if (result.error) {
+      console.error("Could not save review:", result.error);
+    }
+
     const newResponses = [...responses, response];
     setResponses(newResponses);
+
     if (currentIndex >= cards.length - 1) {
       setPhase("complete");
+      router.refresh();
     } else {
       setCurrentIndex((i) => i + 1);
     }
   }
 
   function handlePracticeMore() {
-    setCards(shuffleArray(words));
-    setCurrentIndex(0);
-    setResponses([]);
-    setPhase("quiz");
+    router.push("/student/practice");
+    router.refresh();
   }
 
   const summary = useMemo(() => {
@@ -85,6 +104,7 @@ export function StudentPracticeClient({ words }: { words: Word[] }) {
             cardNumber={currentIndex + 1}
             totalCards={cards.length}
             onResponse={handleResponse}
+            disabled={saving}
           />
         </div>
       </div>

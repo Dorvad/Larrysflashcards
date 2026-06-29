@@ -26,7 +26,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/teacher",          icon: LayoutGrid, label: "Overview" },
   { href: "/teacher/words",    icon: BookMarked, label: "Words" },
-  { href: "/teacher/pending",  icon: Inbox,      label: "Pending", badge: 3 },
+  { href: "/teacher/pending",  icon: Inbox,      label: "Pending" },
   { href: "/teacher/progress", icon: BarChart3,  label: "Larry's Progress" },
 ];
 
@@ -62,9 +62,15 @@ function NavLink({
   );
 }
 
-export default function TeacherNav() {
+export default function TeacherNav({ pendingCount = 0 }: { pendingCount?: number }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const items = navItems.map((item) =>
+    item.href === "/teacher/pending" && pendingCount > 0
+      ? { ...item, badge: pendingCount }
+      : item
+  );
 
   function isActive(href: string) {
     if (href === "/teacher") return pathname === "/teacher";
@@ -98,7 +104,7 @@ export default function TeacherNav() {
         {/* Mobile dropdown */}
         {mobileMenuOpen && (
           <nav className="border-t border-gray-100 px-4 py-3 flex flex-col gap-1">
-            {navItems.map((item) => (
+            {items.map((item) => (
               <NavLink
                 key={item.href}
                 item={item}
@@ -124,7 +130,7 @@ export default function TeacherNav() {
         </div>
 
         <nav className="flex flex-col gap-1 flex-1">
-          {navItems.map((item) => (
+          {items.map((item) => (
             <NavLink key={item.href} item={item} isActive={isActive(item.href)} />
           ))}
         </nav>

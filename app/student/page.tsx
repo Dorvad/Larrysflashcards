@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDueToday, getRecentlyAdded } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { countDueWords } from "@/lib/words";
 import { ChevronRight, Flame } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { Word } from "@/types";
@@ -85,22 +86,9 @@ async function loadStudentData(): Promise<StudentData> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const now = new Date().toISOString();
 
-    const [neverReviewedRes, dueNowRes, recentRes] = await Promise.all([
-      supabase
-        .from("words")
-        .select("*", { count: "exact", head: true })
-        .eq("is_active", true)
-        .eq("is_pending_approval", false)
-        .is("next_review_at", null),
-      supabase
-        .from("words")
-        .select("*", { count: "exact", head: true })
-        .eq("is_active", true)
-        .eq("is_pending_approval", false)
-        .not("next_review_at", "is", null)
-        .lte("next_review_at", now),
+    const [dueCount, recentRes] = await Promise.all([
+      countDueWords(supabase),
       supabase
         .from("words")
         .select("*")
@@ -111,7 +99,7 @@ async function loadStudentData(): Promise<StudentData> {
     ]);
 
     return {
-      dueCount: (neverReviewedRes.count ?? 0) + (dueNowRes.count ?? 0),
+      dueCount,
       recentlyAdded: (recentRes.data ?? []).map(dbWordToWord),
     };
   } catch {
