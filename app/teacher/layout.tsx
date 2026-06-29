@@ -11,6 +11,8 @@ export default async function TeacherLayout({
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
+  let pendingCount = 0;
+
   if (configured) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
@@ -20,8 +22,6 @@ export default async function TeacherLayout({
 
     if (!user) redirect("/login");
 
-    // Check profiles table — authoritative, works even if user_metadata wasn't
-    // set at sign-up time.
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -29,11 +29,18 @@ export default async function TeacherLayout({
       .single();
 
     if (profile?.role !== "teacher") redirect("/student");
+
+    const { count } = await supabase
+      .from("words")
+      .select("*", { count: "exact", head: true })
+      .eq("is_pending_approval", true);
+
+    pendingCount = count ?? 0;
   }
 
   return (
     <div className="min-h-screen">
-      <TeacherNav />
+      <TeacherNav pendingCount={pendingCount} />
       <main className="lg:pl-64 min-h-screen">
         <div className="max-w-4xl mx-auto px-4 py-6 lg:py-10">{children}</div>
       </main>

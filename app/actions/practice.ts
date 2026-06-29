@@ -96,6 +96,8 @@ export async function submitReview(
     revalidatePath("/teacher/progress");
     revalidatePath("/teacher");
     revalidatePath("/student");
+    revalidatePath("/student/progress");
+    revalidatePath("/student/practice");
 
     return {};
   } catch (e) {

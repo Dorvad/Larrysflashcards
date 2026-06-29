@@ -1,5 +1,5 @@
 import { WORDS } from "@/lib/mock-data";
-import { dbWordToWord } from "@/lib/supabase/mappers";
+import { loadDueWords } from "@/lib/words";
 import { StudentPracticeClient } from "./_client";
 import type { Word } from "@/types";
 
@@ -13,14 +13,7 @@ async function loadPracticeWords(): Promise<Word[]> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("words")
-      .select("*")
-      .eq("is_active", true)
-      .eq("is_pending_approval", false)
-      .order("created_at", { ascending: false });
-
-    return (data ?? []).map(dbWordToWord);
+    return await loadDueWords(supabase);
   } catch {
     return WORDS;
   }

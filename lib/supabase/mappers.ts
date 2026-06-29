@@ -17,7 +17,7 @@ export function dbWordToWord(row: any): Word {
     // times_reviewed comes from a joined count; default 0 if not present
     timesReviewed: (row.reviews_count ?? row.times_reviewed ?? 0) as number,
     lastReviewed: row.last_reviewed ?? null,
-    nextReview: null,
+    nextReview: row.next_review_at ?? null,
     teacherNote: row.teacher_notes ?? undefined,
     tags: row.tags ?? [],
     difficulty: (row.difficulty ?? "medium") as Difficulty,

@@ -8,6 +8,7 @@ import {
   NEXT_LESSON_SUGGESTIONS,
 } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { countDueWords } from "@/lib/words";
 import { AlertCircle } from "lucide-react";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
@@ -97,26 +98,14 @@ async function loadDashboard(): Promise<DashboardData> {
 
     try {
       const now = new Date().toISOString();
-      const [strugglingRes, neverReviewedRes, dueNowRes, reviewsRes] = await Promise.all([
+      const [strugglingRes, dueWordsCount, reviewsRes] = await Promise.all([
         supabase
           .from("words")
           .select("*", { count: "exact", head: true })
           .eq("is_active", true)
           .eq("is_pending_approval", false)
           .lte("current_strength", 2),
-        supabase
-          .from("words")
-          .select("*", { count: "exact", head: true })
-          .eq("is_active", true)
-          .eq("is_pending_approval", false)
-          .is("next_review_at", null),
-        supabase
-          .from("words")
-          .select("*", { count: "exact", head: true })
-          .eq("is_active", true)
-          .eq("is_pending_approval", false)
-          .not("next_review_at", "is", null)
-          .lte("next_review_at", now),
+        countDueWords(supabase),
         supabase
           .from("reviews")
           .select("result, reviewed_at")
@@ -125,7 +114,7 @@ async function loadDashboard(): Promise<DashboardData> {
       ]);
 
       strugglingCount = strugglingRes.count ?? 0;
-      dueCount = (neverReviewedRes.count ?? 0) + (dueNowRes.count ?? 0);
+      dueCount = dueWordsCount;
 
       const reviewsByDay = new Map<string, { knew: number; total: number }>();
       for (const r of reviewsRes.data ?? []) {

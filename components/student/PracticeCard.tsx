@@ -10,6 +10,7 @@ interface PracticeCardProps {
   cardNumber: number;
   totalCards: number;
   onResponse: (response: CardResponse) => void;
+  disabled?: boolean;
 }
 
 export function PracticeCard({
@@ -17,6 +18,7 @@ export function PracticeCard({
   cardNumber,
   totalCards,
   onResponse,
+  disabled = false,
 }: PracticeCardProps) {
   const [revealed, setRevealed] = useState(false);
   const [wordPlaying, setWordPlaying] = useState(false);
@@ -152,6 +154,7 @@ export function PracticeCard({
               <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3">
                 <ResponseButton
                   onClick={() => onResponse("forgot")}
+                  disabled={disabled}
                   bg="bg-rose-100 active:bg-rose-200"
                   border="border-rose-300"
                   textColor="text-rose-800"
@@ -161,6 +164,7 @@ export function PracticeCard({
                 />
                 <ResponseButton
                   onClick={() => onResponse("almost")}
+                  disabled={disabled}
                   bg="bg-amber-100 active:bg-amber-200"
                   border="border-amber-300"
                   textColor="text-amber-800"
@@ -170,6 +174,7 @@ export function PracticeCard({
                 />
                 <ResponseButton
                   onClick={() => onResponse("knew")}
+                  disabled={disabled}
                   bg="bg-emerald-100 active:bg-emerald-200"
                   border="border-emerald-300"
                   textColor="text-emerald-800"
@@ -203,6 +208,7 @@ function ResponseButton({
   icon,
   label,
   sublabel,
+  disabled = false,
 }: {
   onClick: () => void;
   bg: string;
@@ -211,11 +217,13 @@ function ResponseButton({
   icon: React.ReactNode;
   label: string;
   sublabel: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1.5 w-full rounded-2xl py-5 px-3 border transition-all duration-100 active:scale-[0.96] min-h-[72px] sm:min-h-[88px] ${bg} ${border}`}
+      disabled={disabled}
+      className={`flex flex-col items-center justify-center gap-1.5 w-full rounded-2xl py-5 px-3 border transition-all duration-100 active:scale-[0.96] min-h-[72px] sm:min-h-[88px] disabled:opacity-50 disabled:cursor-not-allowed ${bg} ${border}`}
     >
       <span className={`${textColor}`}>{icon}</span>
       <span className={`text-lg font-bold leading-tight ${textColor}`}>{label}</span>
