@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getDueToday, getRecentlyAdded } from "@/lib/mock-data";
+import { estimateNextSessionSize } from "@/lib/practice-session";
 import { dbWordToWord } from "@/lib/supabase/mappers";
-import { countDueWords } from "@/lib/words";
+import { countDueWords, countFamiliarWords } from "@/lib/words";
 import { ChevronRight, Flame } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { Word } from "@/types";
@@ -71,6 +72,7 @@ function getDateLabel() {
 
 interface StudentData {
   dueCount: number;
+  sessionSize: number;
   recentlyAdded: Word[];
 }
 
@@ -80,15 +82,21 @@ async function loadStudentData(): Promise<StudentData> {
   );
 
   if (!configured) {
-    return { dueCount: getDueToday().length, recentlyAdded: getRecentlyAdded() };
+    const dueCount = getDueToday().length;
+    return {
+      dueCount,
+      sessionSize: estimateNextSessionSize(dueCount, 10),
+      recentlyAdded: getRecentlyAdded(),
+    };
   }
 
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
 
-    const [dueCount, recentRes] = await Promise.all([
+    const [dueCount, familiarCount, recentRes] = await Promise.all([
       countDueWords(supabase),
+      countFamiliarWords(supabase),
       supabase
         .from("words")
         .select("*")
@@ -100,15 +108,21 @@ async function loadStudentData(): Promise<StudentData> {
 
     return {
       dueCount,
+      sessionSize: estimateNextSessionSize(dueCount, familiarCount),
       recentlyAdded: (recentRes.data ?? []).map(dbWordToWord),
     };
   } catch {
-    return { dueCount: getDueToday().length, recentlyAdded: getRecentlyAdded() };
+    const dueCount = getDueToday().length;
+    return {
+      dueCount,
+      sessionSize: estimateNextSessionSize(dueCount, 10),
+      recentlyAdded: getRecentlyAdded(),
+    };
   }
 }
 
 export default async function StudentHomePage() {
-  const { dueCount: count, recentlyAdded } = await loadStudentData();
+  const { dueCount: count, sessionSize, recentlyAdded } = await loadStudentData();
   const quote = getDailyQuote();
 
   return (
@@ -134,12 +148,18 @@ export default async function StudentHomePage() {
               <div className="flex items-center gap-2 mb-1">
                 <Flame className="w-4 h-4 text-sky-200" />
                 <p className="text-sky-100 text-base font-semibold">
-                  {count} {count === 1 ? "word" : "words"} ready to review
+                  {count} {count === 1 ? "word" : "words"} to review
                 </p>
               </div>
             ) : (
               <p className="text-sky-100 text-base font-semibold mb-1">
                 You&apos;re all caught up today
+              </p>
+            )}
+            {count > 0 && sessionSize > 0 && (
+              <p className="text-sky-200/90 text-sm">
+                Next session: about {sessionSize} cards
+                {count > sessionSize ? ` (${count - sessionSize} more after that)` : ""}
               </p>
             )}
             <Link

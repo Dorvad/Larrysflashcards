@@ -6,6 +6,7 @@ import {
   NEXT_LESSON_SUGGESTIONS,
 } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { loadPracticeSessions, mapMockPracticeSessions, type SessionSummaryRow } from "@/lib/teacher-analytics";
 import { unstable_noStore as noStore } from "next/cache";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
@@ -80,7 +81,7 @@ interface ProgressData {
   newWords: number;
   strong: number;
   suggestedWords: ReturnType<typeof getWeakWords>;
-  sessions: { id: string; date: string; wordCount: number; durationMinutes: number; scores: { knew: number; almost: number; forgot: number } }[];
+  sessions: SessionSummaryRow[];
 }
 
 async function loadProgressData(): Promise<ProgressData> {
@@ -97,24 +98,20 @@ async function loadProgressData(): Promise<ProgressData> {
       newWords: PROGRESS_STATS.newWords,
       strong: PROGRESS_STATS.strong,
       suggestedWords: NEXT_LESSON_SUGGESTIONS,
-      sessions: PRACTICE_SESSIONS,
+      sessions: mapMockPracticeSessions(PRACTICE_SESSIONS),
     };
   }
 
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const [wordsRes, reviewsRes] = await Promise.all([
+    const [wordsRes, sessions] = await Promise.all([
       supabase
         .from("words")
         .select("*")
         .eq("is_active", true)
         .eq("is_pending_approval", false),
-      supabase
-        .from("reviews")
-        .select("result, reviewed_at")
-        .order("reviewed_at", { ascending: false })
-        .limit(200),
+      loadPracticeSessions(supabase, 12),
     ]);
 
     const words = (wordsRes.data ?? []).map(dbWordToWord);
@@ -128,25 +125,6 @@ async function loadProgressData(): Promise<ProgressData> {
     const catMap = new Map<WordCategory, number>();
     for (const w of words) catMap.set(w.category, (catMap.get(w.category) ?? 0) + 1);
     const categoryCounts = Array.from(catMap.entries()).map(([category, count]) => ({ category, count })).sort((a,b)=>b.count-a.count);
-
-    const reviewByDay = new Map();
-    for (const r of reviewsRes.data ?? []) {
-      const day = new Date(r.reviewed_at).toISOString().split("T")[0];
-      const entry = reviewByDay.get(day) ?? { knew: 0, almost: 0, forgot: 0, wordCount: 0 };
-      entry.wordCount++;
-      if (r.result === "knew") entry.knew++;
-      else if (r.result === "almost") entry.almost++;
-      else entry.forgot++;
-      reviewByDay.set(day, entry);
-    }
-
-    const sessions = Array.from(reviewByDay.entries()).slice(0, 8).map(([date, s]) => ({
-      id: date,
-      date,
-      wordCount: s.wordCount,
-      durationMinutes: Math.max(1, Math.round(s.wordCount / 3)),
-      scores: { knew: s.knew, almost: s.almost, forgot: s.forgot },
-    }));
 
     return {
       weakWords,
@@ -169,7 +147,7 @@ async function loadProgressData(): Promise<ProgressData> {
       newWords: PROGRESS_STATS.newWords,
       strong: PROGRESS_STATS.strong,
       suggestedWords: NEXT_LESSON_SUGGESTIONS,
-      sessions: PRACTICE_SESSIONS,
+      sessions: mapMockPracticeSessions(PRACTICE_SESSIONS),
     };
   }
 }
@@ -304,14 +282,19 @@ export default async function ProgressPage() {
       {/* 6. Recent sessions */}
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-gray-800 mb-3">Practice sessions</h2>
-        {data.sessions.map((session) => {
+        {data.sessions.length === 0 ? (
+          <p className="text-sm text-gray-400">No completed sessions yet.</p>
+        ) : (
+        data.sessions.map((session) => {
           const knewPct = session.wordCount > 0
             ? session.scores.knew / session.wordCount
             : 0;
-          const formattedDate = new Date(session.date).toLocaleDateString("en-US", {
+          const formattedDate = new Date(session.completedAt ?? session.date).toLocaleDateString("en-US", {
             month: "long",
             day: "numeric",
             year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
           });
           return (
             <div
@@ -337,6 +320,15 @@ export default async function ProgressPage() {
                 <span className="text-rose-500 font-medium">
                   {session.scores.forgot}
                 </span>
+                {session.encouragementCount > 0 && (
+                  <>
+                    {" "}
+                    &middot; Familiar warm-ups:{" "}
+                    <span className="text-sky-600 font-medium">
+                      {session.encouragementCount}
+                    </span>
+                  </>
+                )}
               </p>
               {/* Progress bar */}
               <div className="mt-3 h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -347,7 +339,8 @@ export default async function ProgressPage() {
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
     </div>
   );
