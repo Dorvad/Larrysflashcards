@@ -9,6 +9,7 @@ import {
 } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
 import { countDueWords } from "@/lib/words";
+import { loadPracticeSessions, mapMockPracticeSessions, type SessionSummaryRow } from "@/lib/teacher-analytics";
 import { AlertCircle } from "lucide-react";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
@@ -22,7 +23,9 @@ interface DashboardData {
   dueCount: number;
   pendingWords: { id: string; hebrew: string; description: string; context: string; submittedAt: string }[];
   suggestedWords: Word[];
-  recentSessions: { id: string; date: string; wordCount: number; knew: number; total: number }[];
+  recentSessions: SessionSummaryRow[];
+  lastPracticedAt: string | null;
+  sessionsThisWeek: number;
   demoMode: boolean;
   error?: string;
 }
@@ -49,13 +52,9 @@ async function loadDashboard(): Promise<DashboardData> {
         submittedAt: w.submittedAt,
       })),
       suggestedWords: NEXT_LESSON_SUGGESTIONS.slice(0, 4),
-      recentSessions: PRACTICE_SESSIONS.slice(0, 3).map((s) => ({
-        id: s.id,
-        date: s.date,
-        wordCount: s.wordCount,
-        knew: s.scores.knew,
-        total: s.wordCount,
-      })),
+      recentSessions: mapMockPracticeSessions(PRACTICE_SESSIONS.slice(0, 3)),
+      lastPracticedAt: PRACTICE_SESSIONS[0]?.date ?? null,
+      sessionsThisWeek: PRACTICE_SESSIONS.length,
       demoMode: true,
     };
   }
@@ -94,45 +93,39 @@ async function loadDashboard(): Promise<DashboardData> {
     // ── Optional queries (schema-dependent — graceful fallback to zeros) ───
     let strugglingCount = 0;
     let dueCount = 0;
-    let recentSessions: { id: string; date: string; wordCount: number; knew: number; total: number }[] = [];
+    let recentSessions: SessionSummaryRow[] = [];
+    let lastPracticedAt: string | null = null;
+    let sessionsThisWeek = 0;
 
     try {
-      const now = new Date().toISOString();
-      const [strugglingRes, dueWordsCount, reviewsRes] = await Promise.all([
-        supabase
-          .from("words")
-          .select("*", { count: "exact", head: true })
-          .eq("is_active", true)
-          .eq("is_pending_approval", false)
-          .lte("current_strength", 2),
-        countDueWords(supabase),
-        supabase
-          .from("reviews")
-          .select("result, reviewed_at")
-          .order("reviewed_at", { ascending: false })
-          .limit(100),
-      ]);
+      const weekStart = new Date();
+      const day = weekStart.getDay();
+      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+      weekStart.setDate(diff);
+      weekStart.setHours(0, 0, 0, 0);
+
+      const [strugglingRes, dueWordsCount, sessions, sessionsWeekRes] =
+        await Promise.all([
+          supabase
+            .from("words")
+            .select("*", { count: "exact", head: true })
+            .eq("is_active", true)
+            .eq("is_pending_approval", false)
+            .lte("current_strength", 2),
+          countDueWords(supabase),
+          loadPracticeSessions(supabase, 5),
+          supabase
+            .from("practice_sessions")
+            .select("*", { count: "exact", head: true })
+            .not("completed_at", "is", null)
+            .gte("completed_at", weekStart.toISOString()),
+        ]);
 
       strugglingCount = strugglingRes.count ?? 0;
       dueCount = dueWordsCount;
-
-      const reviewsByDay = new Map<string, { knew: number; total: number }>();
-      for (const r of reviewsRes.data ?? []) {
-        const day = new Date(r.reviewed_at).toISOString().split("T")[0];
-        const existing = reviewsByDay.get(day) ?? { knew: 0, total: 0 };
-        existing.total++;
-        if (r.result === "knew") existing.knew++;
-        reviewsByDay.set(day, existing);
-      }
-      recentSessions = Array.from(reviewsByDay.entries())
-        .slice(0, 3)
-        .map(([date, stats]) => ({
-          id: date,
-          date,
-          wordCount: stats.total,
-          knew: stats.knew,
-          total: stats.total,
-        }));
+      recentSessions = sessions;
+      lastPracticedAt = sessions[0]?.completedAt ?? null;
+      sessionsThisWeek = sessionsWeekRes.count ?? sessions.length;
     } catch {
       // optional stats unavailable — pending data is still shown correctly
     }
@@ -154,6 +147,8 @@ async function loadDashboard(): Promise<DashboardData> {
       })),
       suggestedWords: (suggestedRes.data ?? []).map(dbWordToWord),
       recentSessions,
+      lastPracticedAt,
+      sessionsThisWeek,
       demoMode: false,
     };
   } catch (e) {
@@ -165,6 +160,8 @@ async function loadDashboard(): Promise<DashboardData> {
       pendingWords: [],
       suggestedWords: [],
       recentSessions: [],
+      lastPracticedAt: null,
+      sessionsThisWeek: 0,
       demoMode: false,
       error: e instanceof Error ? e.message : "Could not load dashboard",
     };
@@ -207,6 +204,26 @@ export default async function TeacherDashboard() {
         <StatCard value={data.pendingCount} label="Pending" href="/teacher/pending" />
         <StatCard value={data.dueCount} label="Due today" />
       </div>
+
+      {(data.lastPracticedAt || data.sessionsThisWeek > 0) && (
+        <p className="text-sm text-gray-500 mt-4">
+          {data.sessionsThisWeek > 0 && (
+            <span>{data.sessionsThisWeek} session{data.sessionsThisWeek === 1 ? "" : "s"} this week</span>
+          )}
+          {data.lastPracticedAt && (
+            <span>
+              {data.sessionsThisWeek > 0 ? " · " : ""}
+              Last practiced{" "}
+              {new Date(data.lastPracticedAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          )}
+        </p>
+      )}
 
       {/* Pending words from Larry */}
       {data.pendingWords.length > 0 && (
@@ -281,14 +298,23 @@ export default async function TeacherDashboard() {
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent practice sessions</h2>
           <div className="flex flex-col gap-2">
             {data.recentSessions.map((session) => {
-              const pct = session.total === 0 ? 0 : Math.round((session.knew / session.total) * 100);
+              const total = session.wordCount;
+              const pct =
+                total === 0
+                  ? 0
+                  : Math.round((session.scores.knew / total) * 100);
               const scoreColor =
                 pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-500" : "text-rose-500";
-              const formattedDate = new Date(session.date).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              });
+              const formattedDate = new Date(session.completedAt ?? session.date).toLocaleDateString(
+                "en-US",
+                {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                }
+              );
               return (
                 <div
                   key={session.id}
@@ -296,7 +322,13 @@ export default async function TeacherDashboard() {
                 >
                   <div>
                     <p className="text-base font-medium text-gray-800">{formattedDate}</p>
-                    <p className="text-sm text-gray-500">{session.wordCount} cards</p>
+                    <p className="text-sm text-gray-500">
+                      {session.wordCount} cards
+                      {session.durationMinutes > 0 ? ` · ${session.durationMinutes} min` : ""}
+                      {session.encouragementCount > 0
+                        ? ` · ${session.encouragementCount} familiar`
+                        : ""}
+                    </p>
                   </div>
                   <span className={`text-2xl font-bold ${scoreColor}`}>{pct}%</span>
                 </div>

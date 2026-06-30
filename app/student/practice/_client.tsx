@@ -6,20 +6,25 @@ import { useRouter } from "next/navigation";
 import { PracticeCard } from "@/components/student/PracticeCard";
 import { submitReview } from "@/app/actions/practice";
 import type { CardResponse, Word } from "@/types";
-import { X, PartyPopper } from "lucide-react";
+import { X, PartyPopper, Sparkles } from "lucide-react";
 
-function shuffleArray<T>(arr: T[]): T[] {
-  const shuffled = [...arr];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
+interface Props {
+  words: Word[];
+  sessionId?: string;
+  totalDueRemaining: number;
+  encouragementCount: number;
+  error?: string;
 }
 
-export function StudentPracticeClient({ words }: { words: Word[] }) {
+export function StudentPracticeClient({
+  words,
+  sessionId,
+  totalDueRemaining,
+  encouragementCount,
+  error,
+}: Props) {
   const router = useRouter();
-  const [cards, setCards] = useState<Word[]>(() => shuffleArray(words));
+  const [cards] = useState<Word[]>(words);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<CardResponse[]>([]);
   const [phase, setPhase] = useState<"quiz" | "complete">("quiz");
@@ -32,7 +37,8 @@ export function StudentPracticeClient({ words }: { words: Word[] }) {
     const result = await submitReview(
       currentWord.id,
       response,
-      currentWord.strength
+      currentWord.strength,
+      sessionId
     );
 
     setSaving(false);
@@ -88,14 +94,25 @@ export function StudentPracticeClient({ words }: { words: Word[] }) {
     const currentWord = cards[currentIndex];
     return (
       <div>
-        <div className="flex justify-end px-4 pt-5 pb-1">
-          <Link
-            href="/student"
-            className="flex items-center gap-1.5 text-sm font-medium text-gray-400 active:text-gray-600 min-h-[44px] min-w-[44px] justify-end"
-          >
-            <X className="w-5 h-5" />
-            Stop
-          </Link>
+        <div className="px-4 pt-5 pb-1">
+          <div className="flex justify-end mb-2">
+            <Link
+              href="/student"
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-400 active:text-gray-600 min-h-[44px] min-w-[44px] justify-end"
+            >
+              <X className="w-5 h-5" />
+              Stop
+            </Link>
+          </div>
+          {encouragementCount > 0 && currentIndex === 0 && (
+            <p className="text-sm text-sky-600 text-center flex items-center justify-center gap-1.5 mb-1">
+              <Sparkles className="w-4 h-4" />
+              This session mixes review words with a few you already know well.
+            </p>
+          )}
+          {error && (
+            <p className="text-xs text-amber-600 text-center mb-2">{error}</p>
+          )}
         </div>
 
         <div key={currentIndex} className="px-4 pb-6 animate-card-enter">
@@ -119,8 +136,13 @@ export function StudentPracticeClient({ words }: { words: Word[] }) {
           {summary.isPerfect ? "Perfect session!" : "Nice work, Larry."}
         </h1>
         <p className="text-lg text-gray-500 mt-2">
-          You practiced {cards.length} word{cards.length === 1 ? "" : "s"}.
+          You practiced {cards.length} word{cards.length === 1 ? "" : "s"} this round.
         </p>
+        {totalDueRemaining > 0 && (
+          <p className="text-base text-sky-600 mt-2 font-medium">
+            {totalDueRemaining} more word{totalDueRemaining === 1 ? "" : "s"} ready for your next session.
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-3xl p-6 shadow-md w-full max-w-sm animate-fade-slide-up delay-100">
@@ -138,9 +160,15 @@ export function StudentPracticeClient({ words }: { words: Word[] }) {
       )}
 
       <div className="flex flex-col gap-3 w-full max-w-sm animate-fade-slide-up delay-375">
-        <button onClick={handlePracticeMore} className="btn-primary text-lg w-full rounded-2xl py-4">
-          Practice again
-        </button>
+        {totalDueRemaining > 0 ? (
+          <button onClick={handlePracticeMore} className="btn-primary text-lg w-full rounded-2xl py-4">
+            Next session
+          </button>
+        ) : (
+          <button onClick={handlePracticeMore} className="btn-primary text-lg w-full rounded-2xl py-4">
+            Practice again
+          </button>
+        )}
         <Link href="/student" className="btn-secondary text-lg w-full text-center rounded-2xl py-4">
           Back home
         </Link>

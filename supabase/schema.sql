@@ -178,6 +178,30 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
 
 -- ================================================================
+-- §4b  TABLE: practice_sessions
+-- ================================================================
+-- Incremental practice rounds (e.g. 10 cards) for distributed study.
+
+CREATE TABLE IF NOT EXISTS public.practice_sessions (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id          UUID        NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  started_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at        TIMESTAMPTZ,
+  card_count          INTEGER     NOT NULL DEFAULT 0 CHECK (card_count >= 0),
+  knew_count          INTEGER     NOT NULL DEFAULT 0 CHECK (knew_count >= 0),
+  almost_count        INTEGER     NOT NULL DEFAULT 0 CHECK (almost_count >= 0),
+  forgot_count        INTEGER     NOT NULL DEFAULT 0 CHECK (forgot_count >= 0),
+  encouragement_count INTEGER     NOT NULL DEFAULT 0 CHECK (encouragement_count >= 0)
+);
+
+ALTER TABLE public.reviews
+  ADD COLUMN IF NOT EXISTS session_id UUID
+    REFERENCES public.practice_sessions(id) ON DELETE SET NULL;
+
+ALTER TABLE public.practice_sessions ENABLE ROW LEVEL SECURITY;
+
+
+-- ================================================================
 -- §5  TABLE: weekly_focus
 -- ================================================================
 -- Dor marks words as lesson focus for a given week.
@@ -289,6 +313,17 @@ CREATE INDEX IF NOT EXISTS idx_reviews_reviewed_at
 CREATE INDEX IF NOT EXISTS idx_reviews_next_review
   ON public.reviews (student_id, next_review_at)
   WHERE next_review_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_practice_sessions_student_started
+  ON public.practice_sessions (student_id, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_practice_sessions_student_completed
+  ON public.practice_sessions (student_id, completed_at DESC)
+  WHERE completed_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_reviews_session_id
+  ON public.reviews (session_id)
+  WHERE session_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_words_next_review
   ON public.words (next_review_at)
@@ -433,6 +468,25 @@ CREATE POLICY "reviews: teacher reads own student reviews"
   );
 
 
+-- ── practice_sessions ────────────────────────────────────────────
+
+CREATE POLICY "practice_sessions: student manages own"
+  ON public.practice_sessions FOR ALL
+  USING (student_id = public.my_student_id())
+  WITH CHECK (student_id = public.my_student_id());
+
+CREATE POLICY "practice_sessions: teacher reads own student"
+  ON public.practice_sessions FOR SELECT
+  USING (
+    public.my_role() = 'teacher'
+    AND EXISTS (
+      SELECT 1 FROM public.students s
+      WHERE s.id = practice_sessions.student_id
+        AND s.teacher_id = auth.uid()
+    )
+  );
+
+
 -- ── weekly_focus ─────────────────────────────────────────────────
 
 CREATE POLICY "weekly_focus: student reads own"
@@ -572,6 +626,7 @@ CREATE TRIGGER on_auth_user_created
 -- ================================================================
 -- Run only if upgrading an existing database — these columns may
 -- not exist yet.  Idempotent; safe to run multiple times.
+-- Or run supabase/migrations/20260629_practice_sessions.sql
 
 ALTER TABLE public.words
   ADD COLUMN IF NOT EXISTS difficulty        TEXT NOT NULL DEFAULT 'medium'
@@ -584,3 +639,50 @@ ALTER TABLE public.words
 CREATE INDEX IF NOT EXISTS idx_words_next_review
   ON public.words (next_review_at)
   WHERE is_active = TRUE AND next_review_at IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public.practice_sessions (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id          UUID        NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  started_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at        TIMESTAMPTZ,
+  card_count          INTEGER     NOT NULL DEFAULT 0 CHECK (card_count >= 0),
+  knew_count          INTEGER     NOT NULL DEFAULT 0 CHECK (knew_count >= 0),
+  almost_count        INTEGER     NOT NULL DEFAULT 0 CHECK (almost_count >= 0),
+  forgot_count        INTEGER     NOT NULL DEFAULT 0 CHECK (forgot_count >= 0),
+  encouragement_count INTEGER     NOT NULL DEFAULT 0 CHECK (encouragement_count >= 0)
+);
+
+ALTER TABLE public.reviews
+  ADD COLUMN IF NOT EXISTS session_id UUID
+    REFERENCES public.practice_sessions(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_practice_sessions_student_started
+  ON public.practice_sessions (student_id, started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_practice_sessions_student_completed
+  ON public.practice_sessions (student_id, completed_at DESC)
+  WHERE completed_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_reviews_session_id
+  ON public.reviews (session_id)
+  WHERE session_id IS NOT NULL;
+
+ALTER TABLE public.practice_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "practice_sessions: student manages own" ON public.practice_sessions;
+CREATE POLICY "practice_sessions: student manages own"
+  ON public.practice_sessions FOR ALL
+  USING (student_id = public.my_student_id())
+  WITH CHECK (student_id = public.my_student_id());
+
+DROP POLICY IF EXISTS "practice_sessions: teacher reads own student" ON public.practice_sessions;
+CREATE POLICY "practice_sessions: teacher reads own student"
+  ON public.practice_sessions FOR SELECT
+  USING (
+    public.my_role() = 'teacher'
+    AND EXISTS (
+      SELECT 1 FROM public.students s
+      WHERE s.id = practice_sessions.student_id
+        AND s.teacher_id = auth.uid()
+    )
+  );

@@ -1,29 +1,23 @@
 import { PROGRESS_STATS, PRACTICE_SESSIONS } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { loadPracticeSessions, mapMockPracticeSessions } from "@/lib/teacher-analytics";
 import ProgressSummaryCard from "@/components/student/ProgressSummaryCard";
 import type { ProgressStats } from "@/types";
 import { unstable_noStore as noStore } from "next/cache";
 
-function formatDate(isoDate: string): string {
-  const date = new Date(isoDate + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
+function formatSessionDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
-}
-
-interface SessionRow {
-  id: string;
-  date: string;
-  wordCount: number;
-  scores: { forgot: number; almost: number; knew: number };
-  durationMinutes: number;
 }
 
 async function loadProgress(): Promise<{
   stats: ProgressStats;
-  sessions: SessionRow[];
+  sessions: Awaited<ReturnType<typeof loadPracticeSessions>>;
   demoMode: boolean;
 }> {
   noStore();
@@ -34,7 +28,7 @@ async function loadProgress(): Promise<{
   if (!configured) {
     return {
       stats: PROGRESS_STATS,
-      sessions: PRACTICE_SESSIONS.slice(0, 5),
+      sessions: mapMockPracticeSessions(PRACTICE_SESSIONS.slice(0, 5)),
       demoMode: true,
     };
   }
@@ -43,17 +37,13 @@ async function loadProgress(): Promise<{
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
 
-    const [wordsRes, reviewsRes] = await Promise.all([
+    const [wordsRes, sessions] = await Promise.all([
       supabase
         .from("words")
         .select("*")
         .eq("is_active", true)
         .eq("is_pending_approval", false),
-      supabase
-        .from("reviews")
-        .select("result, reviewed_at")
-        .order("reviewed_at", { ascending: false })
-        .limit(200),
+      loadPracticeSessions(supabase, 8),
     ]);
 
     const words = (wordsRes.data ?? []).map(dbWordToWord);
@@ -63,46 +53,20 @@ async function loadProgress(): Promise<{
       practicing: words.filter((w) => w.strength === 2 || w.strength === 3).length,
       strong: words.filter((w) => w.strength === 4).length,
       mastered: words.filter((w) => w.strength >= 5).length,
-      recentSessions: [],
-    };
-
-    const reviewByDay = new Map<
-      string,
-      { knew: number; almost: number; forgot: number; wordCount: number }
-    >();
-
-    for (const review of reviewsRes.data ?? []) {
-      const day = new Date(review.reviewed_at).toISOString().split("T")[0];
-      const entry = reviewByDay.get(day) ?? {
-        knew: 0,
-        almost: 0,
-        forgot: 0,
-        wordCount: 0,
-      };
-      entry.wordCount++;
-      if (review.result === "knew") entry.knew++;
-      else if (review.result === "almost") entry.almost++;
-      else entry.forgot++;
-      reviewByDay.set(day, entry);
-    }
-
-    const sessions = Array.from(reviewByDay.entries())
-      .slice(0, 5)
-      .map(([date, s]) => ({
-        id: date,
-        date,
+      recentSessions: sessions.map((s) => ({
+        id: s.id,
+        date: s.date,
         wordCount: s.wordCount,
-        scores: { knew: s.knew, almost: s.almost, forgot: s.forgot },
-        durationMinutes: Math.max(1, Math.round(s.wordCount / 3)),
-      }));
-
-    stats.recentSessions = sessions;
+        scores: s.scores,
+        durationMinutes: s.durationMinutes,
+      })),
+    };
 
     return { stats, sessions, demoMode: false };
   } catch {
     return {
       stats: PROGRESS_STATS,
-      sessions: PRACTICE_SESSIONS.slice(0, 5),
+      sessions: mapMockPracticeSessions(PRACTICE_SESSIONS.slice(0, 5)),
       demoMode: true,
     };
   }
@@ -153,7 +117,7 @@ export default async function ProgressPage() {
                 >
                   <div className="flex items-baseline justify-between mb-2">
                     <p className="text-base font-medium text-gray-800">
-                      {formatDate(session.date)}
+                      {formatSessionDate(session.completedAt ?? session.startedAt)}
                     </p>
                     <p className="text-sm text-gray-400">{session.durationMinutes} min</p>
                   </div>
