@@ -298,7 +298,7 @@ export default async function TeacherDashboard() {
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent practice sessions</h2>
           <div className="flex flex-col gap-2">
             {data.recentSessions.map((session) => {
-              const total = session.wordCount;
+              const total = session.attemptCount || session.wordCount;
               const pct =
                 total === 0
                   ? 0
@@ -323,7 +323,10 @@ export default async function TeacherDashboard() {
                   <div>
                     <p className="text-base font-medium text-gray-800">{formattedDate}</p>
                     <p className="text-sm text-gray-500">
-                      {session.wordCount} cards
+                      {session.wordCount} word{session.wordCount === 1 ? "" : "s"}
+                      {session.attemptCount > session.wordCount
+                        ? ` · ${session.attemptCount} attempts`
+                        : ""}
                       {session.durationMinutes > 0 ? ` · ${session.durationMinutes} min` : ""}
                       {session.encouragementCount > 0
                         ? ` · ${session.encouragementCount} familiar`

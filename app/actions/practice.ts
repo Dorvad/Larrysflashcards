@@ -76,6 +76,7 @@ export async function startPracticeSession(
       .from("practice_sessions")
       .insert({
         student_id: student.id,
+        word_count: built.uniqueWords.length,
         card_count: built.cards.length,
         encouragement_count: built.encouragementCount,
       })
@@ -182,5 +183,37 @@ export async function submitReview(
     return {};
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Could not save review." };
+  }
+}
+
+/** Extend the session when a forgotten word is queued for one retry. */
+export async function addSessionRetryCard(sessionId: string): Promise<ReviewResult> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Not signed in." };
+
+    const admin = createAdminClient();
+    const { data: session, error: fetchError } = await admin
+      .from("practice_sessions")
+      .select("card_count")
+      .eq("id", sessionId)
+      .single();
+
+    if (fetchError || !session) {
+      return { error: fetchError?.message ?? "Session not found." };
+    }
+
+    const { error } = await admin
+      .from("practice_sessions")
+      .update({ card_count: session.card_count + 1 })
+      .eq("id", sessionId);
+
+    if (error) return { error: error.message };
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not update session." };
   }
 }

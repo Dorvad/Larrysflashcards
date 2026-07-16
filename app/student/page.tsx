@@ -3,7 +3,7 @@ import { getDueToday, getRecentlyAdded } from "@/lib/mock-data";
 import { estimateNextSessionSize } from "@/lib/practice-session";
 import { dbWordToWord } from "@/lib/supabase/mappers";
 import { countDueWords, countFamiliarWords } from "@/lib/words";
-import { ChevronRight, Flame } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { Word } from "@/types";
 
@@ -146,9 +146,10 @@ export default async function StudentHomePage() {
           <div className="relative">
             {count > 0 ? (
               <div className="flex items-center gap-2 mb-1">
-                <Flame className="w-4 h-4 text-sky-200" />
                 <p className="text-sky-100 text-base font-semibold">
-                  {count} {count === 1 ? "word" : "words"} to review
+                  {sessionSize > 0
+                    ? `${sessionSize} word${sessionSize === 1 ? "" : "s"} ready`
+                    : `${count} ${count === 1 ? "word" : "words"} to review`}
                 </p>
               </div>
             ) : (
@@ -158,8 +159,8 @@ export default async function StudentHomePage() {
             )}
             {count > 0 && sessionSize > 0 && (
               <p className="text-sky-200/90 text-sm">
-                Next session: about {sessionSize} cards
-                {count > sessionSize ? ` (${count - sessionSize} more after that)` : ""}
+                Next session: about {sessionSize} word{sessionSize === 1 ? "" : "s"}
+                {count > sessionSize ? ` · ${count - sessionSize} more later` : ""}
               </p>
             )}
             <Link

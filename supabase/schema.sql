@@ -180,13 +180,14 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 -- ================================================================
 -- §4b  TABLE: practice_sessions
 -- ================================================================
--- Incremental practice rounds (e.g. 10 cards) for distributed study.
+-- Incremental practice rounds (e.g. 5 unique words) for distributed study.
 
 CREATE TABLE IF NOT EXISTS public.practice_sessions (
   id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id          UUID        NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
   started_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at        TIMESTAMPTZ,
+  word_count          INTEGER     NOT NULL DEFAULT 0 CHECK (word_count >= 0),
   card_count          INTEGER     NOT NULL DEFAULT 0 CHECK (card_count >= 0),
   knew_count          INTEGER     NOT NULL DEFAULT 0 CHECK (knew_count >= 0),
   almost_count        INTEGER     NOT NULL DEFAULT 0 CHECK (almost_count >= 0),
@@ -645,6 +646,7 @@ CREATE TABLE IF NOT EXISTS public.practice_sessions (
   student_id          UUID        NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
   started_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at        TIMESTAMPTZ,
+  word_count          INTEGER     NOT NULL DEFAULT 0 CHECK (word_count >= 0),
   card_count          INTEGER     NOT NULL DEFAULT 0 CHECK (card_count >= 0),
   knew_count          INTEGER     NOT NULL DEFAULT 0 CHECK (knew_count >= 0),
   almost_count        INTEGER     NOT NULL DEFAULT 0 CHECK (almost_count >= 0),
@@ -655,6 +657,9 @@ CREATE TABLE IF NOT EXISTS public.practice_sessions (
 ALTER TABLE public.reviews
   ADD COLUMN IF NOT EXISTS session_id UUID
     REFERENCES public.practice_sessions(id) ON DELETE SET NULL;
+
+ALTER TABLE public.practice_sessions
+  ADD COLUMN IF NOT EXISTS word_count INTEGER NOT NULL DEFAULT 0 CHECK (word_count >= 0);
 
 CREATE INDEX IF NOT EXISTS idx_practice_sessions_student_started
   ON public.practice_sessions (student_id, started_at DESC);

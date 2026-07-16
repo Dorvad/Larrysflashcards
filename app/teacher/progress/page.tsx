@@ -286,9 +286,11 @@ export default async function ProgressPage() {
           <p className="text-sm text-gray-400">No completed sessions yet.</p>
         ) : (
         data.sessions.map((session) => {
-          const knewPct = session.wordCount > 0
-            ? session.scores.knew / session.wordCount
-            : 0;
+          const knewPct = session.attemptCount > 0
+            ? session.scores.knew / session.attemptCount
+            : session.wordCount > 0
+              ? session.scores.knew / session.wordCount
+              : 0;
           const formattedDate = new Date(session.completedAt ?? session.date).toLocaleDateString("en-US", {
             month: "long",
             day: "numeric",

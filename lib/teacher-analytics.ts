@@ -10,6 +10,7 @@ export interface SessionSummaryRow {
   startedAt: string;
   completedAt: string | null;
   wordCount: number;
+  attemptCount: number;
   encouragementCount: number;
   scores: { knew: number; almost: number; forgot: number };
   durationMinutes: number;
@@ -51,7 +52,8 @@ function mapSessionRow(row: any): SessionSummaryRow {
     date,
     startedAt,
     completedAt,
-    wordCount: row.card_count as number,
+    wordCount: (row.word_count as number) || (row.card_count as number),
+    attemptCount: row.card_count as number,
     encouragementCount: (row.encouragement_count as number) ?? 0,
     scores: {
       knew: row.knew_count as number,
@@ -69,6 +71,7 @@ export function mapMockPracticeSessions(sessions: PracticeSession[]): SessionSum
     startedAt: s.date,
     completedAt: s.date,
     wordCount: s.wordCount,
+    attemptCount: s.wordCount,
     encouragementCount: 0,
     scores: s.scores,
     durationMinutes: s.durationMinutes,
@@ -160,6 +163,7 @@ export async function loadSessionsFromReviews(
       startedAt: s.lastAt,
       completedAt: s.lastAt,
       wordCount: s.wordCount,
+      attemptCount: s.wordCount,
       encouragementCount: 0,
       scores: { knew: s.knew, almost: s.almost, forgot: s.forgot },
       durationMinutes: Math.max(1, Math.round(s.wordCount / 3)),

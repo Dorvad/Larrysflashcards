@@ -79,3 +79,25 @@ export async function countFamiliarWords(supabase: SupabaseClient): Promise<numb
   ]);
   return familiarWords(dueWords, activeWords).length;
 }
+
+function startOfWeekDate(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  return monday.toISOString().split("T")[0];
+}
+
+/** Word IDs Dor marked as this week's lesson focus. */
+export async function loadWeeklyFocusIds(
+  supabase: SupabaseClient
+): Promise<Set<string>> {
+  const weekStart = startOfWeekDate();
+  const { data } = await supabase
+    .from("weekly_focus")
+    .select("word_id")
+    .eq("week_start_date", weekStart);
+
+  return new Set((data ?? []).map((row: { word_id: string }) => row.word_id));
+}
