@@ -4,12 +4,19 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PracticeCard } from "@/components/student/PracticeCard";
-import { submitReview } from "@/app/actions/practice";
+import { addSessionRetryCard, submitReview } from "@/app/actions/practice";
+import {
+  buildInitialQueue,
+  insertForgottenRetry,
+  summarizeWordOutcomes,
+  type QueueCard,
+} from "@/lib/practice-retry";
 import type { CardResponse, Word } from "@/types";
-import { X, PartyPopper, Sparkles } from "lucide-react";
+import { X } from "lucide-react";
 
 interface Props {
   words: Word[];
+  uniqueWordCount: number;
   sessionId?: string;
   totalDueRemaining: number;
   encouragementCount: number;
@@ -18,39 +25,66 @@ interface Props {
 
 export function StudentPracticeClient({
   words,
+  uniqueWordCount,
   sessionId,
   totalDueRemaining,
   encouragementCount,
   error,
 }: Props) {
   const router = useRouter();
-  const [cards] = useState<Word[]>(words);
+  const [queue, setQueue] = useState<QueueCard[]>(() => buildInitialQueue(words));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<CardResponse[]>([]);
+  const [retriedWordIds, setRetriedWordIds] = useState<Set<string>>(() => new Set());
   const [phase, setPhase] = useState<"quiz" | "complete">("quiz");
   const [saving, setSaving] = useState(false);
 
   async function handleResponse(response: CardResponse) {
-    const currentWord = cards[currentIndex];
+    const currentCard = queue[currentIndex];
     setSaving(true);
 
     const result = await submitReview(
-      currentWord.id,
+      currentCard.word.id,
       response,
-      currentWord.strength,
+      currentCard.word.strength,
       sessionId
     );
-
-    setSaving(false);
 
     if (result.error) {
       console.error("Could not save review:", result.error);
     }
 
+    let nextQueue = queue;
+    if (
+      response === "forgot" &&
+      !currentCard.isRetry &&
+      !retriedWordIds.has(currentCard.word.id)
+    ) {
+      const retry = insertForgottenRetry(
+        queue,
+        currentIndex,
+        currentCard.word,
+        retriedWordIds
+      );
+      if (retry.inserted) {
+        nextQueue = retry.queue;
+        setQueue(retry.queue);
+        setRetriedWordIds((prev) => new Set(prev).add(currentCard.word.id));
+        if (sessionId) {
+          const retryResult = await addSessionRetryCard(sessionId);
+          if (retryResult.error) {
+            console.error("Could not extend session for retry:", retryResult.error);
+          }
+        }
+      }
+    }
+
+    setSaving(false);
+
     const newResponses = [...responses, response];
     setResponses(newResponses);
 
-    if (currentIndex >= cards.length - 1) {
+    if (currentIndex >= nextQueue.length - 1) {
       setPhase("complete");
       router.refresh();
     } else {
@@ -64,6 +98,7 @@ export function StudentPracticeClient({
   }
 
   const summary = useMemo(() => {
+    const { remembered, willReturn } = summarizeWordOutcomes(queue, responses);
     const knewCount = responses.filter((r) => r === "knew").length;
     const almostCount = responses.filter((r) => r === "almost").length;
     const forgotCount = responses.filter((r) => r === "forgot").length;
@@ -71,16 +106,17 @@ export function StudentPracticeClient({
       knewCount,
       almostCount,
       forgotCount,
-      isPerfect: knewCount === cards.length,
+      remembered,
+      willReturn,
+      allRemembered: remembered === uniqueWordCount && uniqueWordCount > 0,
     };
-  }, [responses, cards.length]);
+  }, [responses, queue, uniqueWordCount]);
 
-  if (cards.length === 0) {
+  if (words.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 gap-6 text-center">
         <div className="animate-pop-in">
-          <p className="text-5xl mb-4">🎉</p>
-          <h1 className="text-3xl font-bold text-gray-900">All caught up!</h1>
+          <h1 className="text-3xl font-bold text-gray-900">All caught up</h1>
           <p className="text-xl text-gray-500 mt-2">No words due right now.</p>
         </div>
         <Link href="/student" className="btn-primary text-lg rounded-2xl px-8 py-4 animate-fade-slide-up delay-150">
@@ -91,7 +127,7 @@ export function StudentPracticeClient({
   }
 
   if (phase === "quiz") {
-    const currentWord = cards[currentIndex];
+    const currentCard = queue[currentIndex];
     return (
       <div>
         <div className="px-4 pt-5 pb-1">
@@ -105,9 +141,8 @@ export function StudentPracticeClient({
             </Link>
           </div>
           {encouragementCount > 0 && currentIndex === 0 && (
-            <p className="text-sm text-sky-600 text-center flex items-center justify-center gap-1.5 mb-1">
-              <Sparkles className="w-4 h-4" />
-              This session mixes review words with a few you already know well.
+            <p className="text-sm text-gray-500 text-center mb-1">
+              A short session — starting with a word you know well.
             </p>
           )}
           {error && (
@@ -115,11 +150,11 @@ export function StudentPracticeClient({
           )}
         </div>
 
-        <div key={currentIndex} className="px-4 pb-6 animate-card-enter">
+        <div key={`${currentIndex}-${currentCard.word.id}-${currentCard.isRetry}`} className="px-4 pb-6 animate-card-enter">
           <PracticeCard
-            word={currentWord}
+            word={currentCard.word}
             cardNumber={currentIndex + 1}
-            totalCards={cards.length}
+            totalCards={queue.length}
             onResponse={handleResponse}
             disabled={saving}
           />
@@ -131,16 +166,24 @@ export function StudentPracticeClient({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 gap-6">
       <div className="animate-pop-in text-center">
-        {summary.isPerfect && <PartyPopper className="w-10 h-10 text-amber-400 mx-auto mb-3" />}
-        <h1 className="text-3xl font-bold text-gray-900">
-          {summary.isPerfect ? "Perfect session!" : "Nice work, Larry."}
-        </h1>
-        <p className="text-lg text-gray-500 mt-2">
-          You practiced {cards.length} word{cards.length === 1 ? "" : "s"} this round.
-        </p>
+        <h1 className="text-3xl font-bold text-gray-900">Session complete</h1>
+        {summary.allRemembered ? (
+          <p className="text-lg text-gray-500 mt-2">
+            You remembered all {uniqueWordCount} word{uniqueWordCount === 1 ? "" : "s"} today.
+          </p>
+        ) : (
+          <>
+            <p className="text-lg text-gray-500 mt-2">
+              You practised {uniqueWordCount} word{uniqueWordCount === 1 ? "" : "s"}.
+            </p>
+            <p className="text-base text-gray-500 mt-1">
+              {summary.remembered} were remembered, and {summary.willReturn} will return soon.
+            </p>
+          </>
+        )}
         {totalDueRemaining > 0 && (
-          <p className="text-base text-sky-600 mt-2 font-medium">
-            {totalDueRemaining} more word{totalDueRemaining === 1 ? "" : "s"} ready for your next session.
+          <p className="text-base text-gray-400 mt-3">
+            {totalDueRemaining} more word{totalDueRemaining === 1 ? "" : "s"} remain for later sessions.
           </p>
         )}
       </div>
@@ -152,12 +195,6 @@ export function StudentPracticeClient({
           <ScoreRow label="Still learning" value={summary.forgotCount} color="text-rose-500" delay={300} />
         </div>
       </div>
-
-      {summary.forgotCount > 0 && (
-        <p className="text-sm text-gray-400 text-center italic animate-fade-slide-up delay-375">
-          We&apos;ll bring the harder words back soon.
-        </p>
-      )}
 
       <div className="flex flex-col gap-3 w-full max-w-sm animate-fade-slide-up delay-375">
         {totalDueRemaining > 0 ? (

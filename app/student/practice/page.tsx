@@ -7,6 +7,7 @@ import {
   familiarWords,
   loadActiveWords,
   loadDueWords,
+  loadWeeklyFocusIds,
 } from "@/lib/words";
 import { startPracticeSession } from "@/app/actions/practice";
 import { StudentPracticeClient } from "./_client";
@@ -14,6 +15,7 @@ import type { Word } from "@/types";
 
 interface PracticePageData {
   words: Word[];
+  uniqueWordCount: number;
   sessionId?: string;
   totalDueRemaining: number;
   encouragementCount: number;
@@ -33,6 +35,7 @@ async function loadPracticeSession(): Promise<PracticePageData> {
     const built = buildSessionDeck(due, familiar);
     return {
       words: built.cards,
+      uniqueWordCount: built.uniqueWords.length,
       totalDueRemaining: built.totalDueRemaining,
       encouragementCount: built.encouragementCount,
     };
@@ -41,15 +44,21 @@ async function loadPracticeSession(): Promise<PracticePageData> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
-    const [dueWords, activeWords] = await Promise.all([
+    const [dueWords, activeWords, weeklyFocusIds] = await Promise.all([
       loadDueWords(supabase),
       loadActiveWords(supabase),
+      loadWeeklyFocusIds(supabase),
     ]);
-    const built = buildSessionDeck(dueWords, familiarWords(dueWords, activeWords));
+    const built = buildSessionDeck(
+      dueWords,
+      familiarWords(dueWords, activeWords),
+      weeklyFocusIds
+    );
 
     if (built.cards.length === 0) {
       return {
         words: [],
+        uniqueWordCount: 0,
         totalDueRemaining: 0,
         encouragementCount: 0,
       };
@@ -59,6 +68,7 @@ async function loadPracticeSession(): Promise<PracticePageData> {
 
     return {
       words: built.cards,
+      uniqueWordCount: built.uniqueWords.length,
       sessionId: started.sessionId,
       totalDueRemaining: built.totalDueRemaining,
       encouragementCount: built.encouragementCount,
@@ -75,6 +85,7 @@ async function loadPracticeSession(): Promise<PracticePageData> {
     const built = buildSessionDeck(due, familiar);
     return {
       words: built.cards,
+      uniqueWordCount: built.uniqueWords.length,
       totalDueRemaining: built.totalDueRemaining,
       encouragementCount: built.encouragementCount,
     };
@@ -87,6 +98,7 @@ export default async function PracticePage() {
   return (
     <StudentPracticeClient
       words={data.words}
+      uniqueWordCount={data.uniqueWordCount}
       sessionId={data.sessionId}
       totalDueRemaining={data.totalDueRemaining}
       encouragementCount={data.encouragementCount}
