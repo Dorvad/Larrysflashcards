@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test": "tsx --test lib/practice.test.ts"
+    "test": "tsx --test lib/practice.test.ts lib/students.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

@@ -1,4 +1,5 @@
 import { PENDING_WORDS } from "@/lib/mock-data";
+import { getManagedStudents, managedStudentIds } from "@/lib/students";
 import { TeacherPendingClient } from "./_client";
 import type { PendingWordData } from "./_client";
 import { unstable_noStore as noStore } from "next/cache";
@@ -38,9 +39,24 @@ async function loadPendingWords(): Promise<LoadResult> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { words: [], demoMode: false, error: "Not signed in." };
+    }
+
+    const studentIds = managedStudentIds(
+      await getManagedStudents(supabase, user.id)
+    );
+    if (studentIds.length === 0) {
+      return { words: [], demoMode: false };
+    }
+
     const { data, error } = await supabase
       .from("words")
       .select("id, hebrew, hebrew_niqqud, transliteration, meaning_en, example_he, example_en, category, difficulty, teacher_notes, created_at")
+      .in("student_id", studentIds)
       .eq("is_pending_approval", true)
       .order("created_at", { ascending: true });
 

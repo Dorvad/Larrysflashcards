@@ -1,4 +1,5 @@
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { applyStudentScope } from "@/lib/students";
 import { FAMILIAR_MIN_STRENGTH } from "@/lib/practice-session";
 import type { Word } from "@/types";
 
@@ -42,16 +43,31 @@ export async function loadDueWords(supabase: SupabaseClient): Promise<Word[]> {
   );
 }
 
-export async function countDueWords(supabase: SupabaseClient): Promise<number> {
+function scopeWords<T extends { in: (column: string, values: string[]) => T }>(
+  query: T,
+  studentIds?: string[]
+): T | null {
+  return applyStudentScope(query, studentIds);
+}
+
+export async function countDueWords(
+  supabase: SupabaseClient,
+  studentIds?: string[]
+): Promise<number> {
+  if (studentIds && studentIds.length === 0) return 0;
+
   const now = new Date().toISOString();
 
-  const [neverReviewedRes, dueNowRes] = await Promise.all([
+  const neverReviewedQuery = scopeWords(
     supabase
       .from("words")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true)
       .eq("is_pending_approval", false)
       .is("next_review_at", null),
+    studentIds
+  );
+  const dueNowQuery = scopeWords(
     supabase
       .from("words")
       .select("*", { count: "exact", head: true })
@@ -59,6 +75,14 @@ export async function countDueWords(supabase: SupabaseClient): Promise<number> {
       .eq("is_pending_approval", false)
       .not("next_review_at", "is", null)
       .lte("next_review_at", now),
+    studentIds
+  );
+
+  if (!neverReviewedQuery || !dueNowQuery) return 0;
+
+  const [neverReviewedRes, dueNowRes] = await Promise.all([
+    neverReviewedQuery,
+    dueNowQuery,
   ]);
 
   return (neverReviewedRes.count ?? 0) + (dueNowRes.count ?? 0);

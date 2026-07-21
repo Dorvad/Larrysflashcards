@@ -1,5 +1,6 @@
 import { WORDS } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { getManagedStudents, managedStudentIds } from "@/lib/students";
 import { TeacherWordsClient } from "./_client";
 import type { Word } from "@/types";
 
@@ -22,9 +23,24 @@ async function loadWords(): Promise<LoadResult> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { words: [], demoMode: false, error: "Not signed in." };
+    }
+
+    const studentIds = managedStudentIds(
+      await getManagedStudents(supabase, user.id)
+    );
+    if (studentIds.length === 0) {
+      return { words: [], demoMode: false };
+    }
+
     const { data, error } = await supabase
       .from("words")
       .select("*")
+      .in("student_id", studentIds)
       .eq("is_active", true)
       .eq("is_pending_approval", false)
       .order("created_at", { ascending: false });

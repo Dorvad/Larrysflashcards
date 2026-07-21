@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import TeacherNav from "@/components/teacher/TeacherNav";
+import { getManagedStudents, managedStudentIds } from "@/lib/students";
 
 export default async function TeacherLayout({
   children,
@@ -30,12 +31,19 @@ export default async function TeacherLayout({
 
     if (profile?.role !== "teacher") redirect("/student");
 
-    const { count } = await supabase
-      .from("words")
-      .select("*", { count: "exact", head: true })
-      .eq("is_pending_approval", true);
+    const studentIds = managedStudentIds(
+      await getManagedStudents(supabase, user.id)
+    );
 
-    pendingCount = count ?? 0;
+    if (studentIds.length > 0) {
+      const { count } = await supabase
+        .from("words")
+        .select("*", { count: "exact", head: true })
+        .in("student_id", studentIds)
+        .eq("is_pending_approval", true);
+
+      pendingCount = count ?? 0;
+    }
   }
 
   return (

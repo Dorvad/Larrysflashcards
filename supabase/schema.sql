@@ -273,6 +273,29 @@ AS $$
   SELECT id FROM public.students WHERE profile_id = auth.uid()
 $$;
 
+-- Prevent teachers from having a students row (would pollute teacher analytics).
+CREATE OR REPLACE FUNCTION public.enforce_student_profile_role()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = NEW.profile_id AND role = 'teacher'
+  ) THEN
+    RAISE EXCEPTION 'A teacher profile cannot be linked as a student record';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS students_enforce_profile_role ON public.students;
+CREATE TRIGGER students_enforce_profile_role
+  BEFORE INSERT OR UPDATE OF profile_id ON public.students
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_student_profile_role();
+
 
 -- ================================================================
 -- §8  INDEXES

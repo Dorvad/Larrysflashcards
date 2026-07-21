@@ -30,18 +30,25 @@ async function getStudentId(teacherId: string): Promise<string> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("students")
-    .select("id")
-    .eq("teacher_id", teacherId)
-    .limit(1)
-    .single();
+    .select("id, profile_id")
+    .eq("teacher_id", teacherId);
 
-  if (error || !data) {
+  if (error || !data?.length) {
     throw new Error(
       "No student found for your account. " +
         "Please create a student record in the database first (see supabase/seed.sql)."
     );
   }
-  return data.id;
+
+  const student = data.find((row) => row.profile_id !== teacherId);
+  if (!student) {
+    throw new Error(
+      "No student found for your account. " +
+        "Please create a student record in the database first (see supabase/seed.sql)."
+    );
+  }
+
+  return student.id;
 }
 
 async function uploadMedia(file: File, path: string): Promise<string> {
