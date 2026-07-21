@@ -49,6 +49,34 @@ function addDays(days: number): Date {
   return d;
 }
 
+async function ensureStudentActor() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." as const };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "student") {
+    return { error: "Only students can record practice sessions." as const };
+  }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("profile_id", user.id)
+    .single();
+
+  if (!student) return { error: "Student record not found." as const };
+
+  return { supabase, user, student };
+}
+
 export async function startPracticeSession(
   built: BuiltSession
 ): Promise<StartSessionResult> {
@@ -57,19 +85,10 @@ export async function startPracticeSession(
       return { error: "No cards in this session." };
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { error: "Not signed in." };
+    const actor = await ensureStudentActor();
+    if ("error" in actor) return { error: actor.error };
 
-    const { data: student } = await supabase
-      .from("students")
-      .select("id")
-      .eq("profile_id", user.id)
-      .single();
-
-    if (!student) return { error: "Student record not found." };
+    const { student } = actor;
 
     const admin = createAdminClient();
     const { data, error } = await admin
@@ -97,19 +116,10 @@ export async function submitReview(
   sessionId?: string
 ): Promise<ReviewResult> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { error: "Not signed in." };
+    const actor = await ensureStudentActor();
+    if ("error" in actor) return { error: actor.error };
 
-    const { data: student } = await supabase
-      .from("students")
-      .select("id")
-      .eq("profile_id", user.id)
-      .single();
-
-    if (!student) return { error: "Student record not found." };
+    const { student } = actor;
 
     const { newStrength, nextReviewDays, newStatus } = computeSRS(
       result,
@@ -189,11 +199,8 @@ export async function submitReview(
 /** Extend the session when a forgotten word is queued for one retry. */
 export async function addSessionRetryCard(sessionId: string): Promise<ReviewResult> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { error: "Not signed in." };
+    const actor = await ensureStudentActor();
+    if ("error" in actor) return { error: actor.error };
 
     const admin = createAdminClient();
     const { data: session, error: fetchError } = await admin

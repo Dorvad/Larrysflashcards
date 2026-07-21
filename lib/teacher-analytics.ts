@@ -1,4 +1,5 @@
 import { dbWordToWord } from "@/lib/supabase/mappers";
+import { applyStudentScope } from "@/lib/students";
 import type { PracticeSession, Word } from "@/types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,29 +79,76 @@ export function mapMockPracticeSessions(sessions: PracticeSession[]): SessionSum
   }));
 }
 
+function scopedByStudents<T extends { in: (column: string, values: string[]) => T }>(
+  query: T,
+  studentIds?: string[]
+): T | null {
+  return applyStudentScope(query, studentIds);
+}
+
 /** Load Larry's vocabulary + practice session history for the teacher dashboard. */
 export async function loadTeacherStudentStats(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  studentIds?: string[]
 ): Promise<TeacherStudentStats> {
+  if (studentIds && studentIds.length === 0) {
+    return {
+      activeCount: 0,
+      pendingCount: 0,
+      strugglingCount: 0,
+      dueCount: 0,
+      lastPracticedAt: null,
+      sessionsThisWeek: 0,
+      words: [],
+      sessions: [],
+    };
+  }
+
   const weekStart = startOfWeek().toISOString();
 
-  const [wordsRes, sessionsRes, sessionsWeekRes] = await Promise.all([
+  const wordsQuery = scopedByStudents(
     supabase
       .from("words")
       .select("*")
       .eq("is_active", true)
       .eq("is_pending_approval", false),
+    studentIds
+  );
+  const sessionsQuery = scopedByStudents(
     supabase
       .from("practice_sessions")
       .select("*")
       .not("completed_at", "is", null)
       .order("completed_at", { ascending: false })
       .limit(12),
+    studentIds
+  );
+  const sessionsWeekQuery = scopedByStudents(
     supabase
       .from("practice_sessions")
       .select("*", { count: "exact", head: true })
       .not("completed_at", "is", null)
       .gte("completed_at", weekStart),
+    studentIds
+  );
+
+  if (!wordsQuery || !sessionsQuery || !sessionsWeekQuery) {
+    return {
+      activeCount: 0,
+      pendingCount: 0,
+      strugglingCount: 0,
+      dueCount: 0,
+      lastPracticedAt: null,
+      sessionsThisWeek: 0,
+      words: [],
+      sessions: [],
+    };
+  }
+
+  const [wordsRes, sessionsRes, sessionsWeekRes] = await Promise.all([
+    wordsQuery,
+    sessionsQuery,
+    sessionsWeekQuery,
   ]);
 
   const words = (wordsRes.data ?? []).map(dbWordToWord);
@@ -126,13 +174,22 @@ export async function loadTeacherStudentStats(
 /** Fallback when practice_sessions table is not migrated yet. */
 export async function loadSessionsFromReviews(
   supabase: SupabaseClient,
-  limit = 12
+  limit = 12,
+  studentIds?: string[]
 ): Promise<SessionSummaryRow[]> {
-  const { data } = await supabase
+  if (studentIds && studentIds.length === 0) return [];
+
+  let reviewsQuery = supabase
     .from("reviews")
     .select("result, reviewed_at")
     .order("reviewed_at", { ascending: false })
     .limit(200);
+
+  if (studentIds) {
+    reviewsQuery = reviewsQuery.in("student_id", studentIds);
+  }
+
+  const { data } = await reviewsQuery;
 
   const byDay = new Map<
     string,
@@ -172,17 +229,26 @@ export async function loadSessionsFromReviews(
 
 export async function loadPracticeSessions(
   supabase: SupabaseClient,
-  limit = 12
+  limit = 12,
+  studentIds?: string[]
 ): Promise<SessionSummaryRow[]> {
-  const { data, error } = await supabase
+  if (studentIds && studentIds.length === 0) return [];
+
+  let sessionsQuery = supabase
     .from("practice_sessions")
     .select("*")
     .not("completed_at", "is", null)
     .order("completed_at", { ascending: false })
     .limit(limit);
 
+  if (studentIds) {
+    sessionsQuery = sessionsQuery.in("student_id", studentIds);
+  }
+
+  const { data, error } = await sessionsQuery;
+
   if (error) {
-    return loadSessionsFromReviews(supabase, limit);
+    return loadSessionsFromReviews(supabase, limit, studentIds);
   }
 
   return (data ?? []).map(mapSessionRow);

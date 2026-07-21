@@ -7,6 +7,7 @@ import {
 } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
 import { loadPracticeSessions, mapMockPracticeSessions, type SessionSummaryRow } from "@/lib/teacher-analytics";
+import { getManagedStudents, managedStudentIds } from "@/lib/students";
 import { unstable_noStore as noStore } from "next/cache";
 import StatusBadge from "@/components/shared/StatusBadge";
 import HebrewText from "@/components/shared/HebrewText";
@@ -105,13 +106,37 @@ async function loadProgressData(): Promise<ProgressData> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not signed in.");
+
+    const studentIds = managedStudentIds(
+      await getManagedStudents(supabase, user.id)
+    );
+
+    if (studentIds.length === 0) {
+      return {
+        weakWords: [],
+        categoryCounts: [],
+        total: 0,
+        mastered: 0,
+        practicing: 0,
+        newWords: 0,
+        strong: 0,
+        suggestedWords: [],
+        sessions: [],
+      };
+    }
+
     const [wordsRes, sessions] = await Promise.all([
       supabase
         .from("words")
         .select("*")
+        .in("student_id", studentIds)
         .eq("is_active", true)
         .eq("is_pending_approval", false),
-      loadPracticeSessions(supabase, 12),
+      loadPracticeSessions(supabase, 12, studentIds),
     ]);
 
     const words = (wordsRes.data ?? []).map(dbWordToWord);

@@ -9,6 +9,7 @@ import {
 } from "@/lib/mock-data";
 import { dbWordToWord } from "@/lib/supabase/mappers";
 import { countDueWords } from "@/lib/words";
+import { getManagedStudents, managedStudentIds } from "@/lib/students";
 import { loadPracticeSessions, mapMockPracticeSessions, type SessionSummaryRow } from "@/lib/teacher-analytics";
 import { AlertCircle } from "lucide-react";
 import StatusBadge from "@/components/shared/StatusBadge";
@@ -62,27 +63,56 @@ async function loadDashboard(): Promise<DashboardData> {
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not signed in.");
+
+    const studentIds = managedStudentIds(
+      await getManagedStudents(supabase, user.id)
+    );
+
+    if (studentIds.length === 0) {
+      return {
+        activeCount: 0,
+        pendingCount: 0,
+        strugglingCount: 0,
+        dueCount: 0,
+        pendingWords: [],
+        suggestedWords: [],
+        recentSessions: [],
+        lastPracticedAt: null,
+        sessionsThisWeek: 0,
+        demoMode: false,
+        error:
+          "No student is linked to your teacher account yet. Add Larry's student record in Supabase (see supabase/seed.sql).",
+      };
+    }
 
     // ── Core queries (always needed — never fall back to mock) ─────────────
     const [activeRes, pendingRes, pendingWordsRes, suggestedRes] = await Promise.all([
       supabase
         .from("words")
         .select("*", { count: "exact", head: true })
+        .in("student_id", studentIds)
         .eq("is_active", true)
         .eq("is_pending_approval", false),
       supabase
         .from("words")
         .select("*", { count: "exact", head: true })
+        .in("student_id", studentIds)
         .eq("is_pending_approval", true),
       supabase
         .from("words")
         .select("id, hebrew, hebrew_niqqud, meaning_en, example_en, teacher_notes, created_at")
+        .in("student_id", studentIds)
         .eq("is_pending_approval", true)
         .order("created_at", { ascending: false })
         .limit(3),
       supabase
         .from("words")
         .select("*")
+        .in("student_id", studentIds)
         .eq("is_active", true)
         .eq("is_pending_approval", false)
         .lte("current_strength", 2)
@@ -109,14 +139,16 @@ async function loadDashboard(): Promise<DashboardData> {
           supabase
             .from("words")
             .select("*", { count: "exact", head: true })
+            .in("student_id", studentIds)
             .eq("is_active", true)
             .eq("is_pending_approval", false)
             .lte("current_strength", 2),
-          countDueWords(supabase),
-          loadPracticeSessions(supabase, 5),
+          countDueWords(supabase, studentIds),
+          loadPracticeSessions(supabase, 5, studentIds),
           supabase
             .from("practice_sessions")
             .select("*", { count: "exact", head: true })
+            .in("student_id", studentIds)
             .not("completed_at", "is", null)
             .gte("completed_at", weekStart.toISOString()),
         ]);
