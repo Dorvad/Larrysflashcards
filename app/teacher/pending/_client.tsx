@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, X } from "lucide-react";
+import { Pencil, X, Download } from "lucide-react";
 import Link from "next/link";
 import { rejectWord } from "@/app/actions/pending";
 import EmptyState from "@/components/shared/EmptyState";
@@ -14,6 +14,46 @@ export interface PendingWordData {
   context: string;
   notes: string;
   submittedAt: string;
+  hebrewPlain: string;
+  hebrewNiqqud: string;
+  transliteration: string;
+  exampleHebrew: string;
+  category: string;
+  difficulty: string;
+}
+
+function csvField(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function exportPendingToCSV(words: PendingWordData[]) {
+  const header = "hebrew,hebrew_niqqud,transliteration,meaning_en,example_he,example_en,category,difficulty,teacher_notes";
+  const rows = words.map((w) => {
+    const hebrewForExport = w.hebrewPlain === "(unknown)" ? "" : w.hebrewPlain;
+    return [
+      csvField(hebrewForExport),
+      csvField(w.hebrewNiqqud),
+      csvField(w.transliteration),
+      csvField(w.description),
+      csvField(w.exampleHebrew),
+      csvField(w.context),
+      csvField(w.category),
+      csvField(w.difficulty),
+      csvField(w.notes),
+    ].join(",");
+  });
+  // BOM for Excel Hebrew compatibility
+  const csv = "﻿" + [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `student-suggestions-${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 type LocalStatus = "pending" | "declined" | "error";
@@ -118,7 +158,19 @@ export function TeacherPendingClient({
 }) {
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Pending Words</h1>
+      <div className="flex items-start justify-between gap-4 mb-1">
+        <h1 className="text-2xl font-bold text-gray-900">Pending Words</h1>
+        {words.length > 0 && (
+          <button
+            type="button"
+            onClick={() => exportPendingToCSV(words)}
+            className="inline-flex items-center gap-2 text-sm text-sky-600 font-semibold min-h-[44px] px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 active:bg-sky-100 transition-colors shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        )}
+      </div>
       <p className="text-base text-gray-500 mb-6">
         Words Larry would like to learn.
         {demoMode && (

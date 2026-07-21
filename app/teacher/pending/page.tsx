@@ -24,6 +24,12 @@ async function loadPendingWords(): Promise<LoadResult> {
         context: w.heardWhere,
         notes: w.notes ?? "",
         submittedAt: w.submittedAt,
+        hebrewPlain: w.hebrewGuess ?? "",
+        hebrewNiqqud: "",
+        transliteration: "",
+        exampleHebrew: "",
+        category: "",
+        difficulty: "",
       })),
       demoMode: true,
     };
@@ -34,7 +40,7 @@ async function loadPendingWords(): Promise<LoadResult> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("words")
-      .select("id, hebrew, hebrew_niqqud, meaning_en, example_en, teacher_notes, created_at")
+      .select("id, hebrew, hebrew_niqqud, transliteration, meaning_en, example_he, example_en, category, difficulty, teacher_notes, created_at")
       .eq("is_pending_approval", true)
       .order("created_at", { ascending: true });
 
@@ -51,6 +57,12 @@ async function loadPendingWords(): Promise<LoadResult> {
         day: "numeric",
         year: "numeric",
       }),
+      hebrewPlain: w.hebrew ?? "",
+      hebrewNiqqud: w.hebrew_niqqud ?? "",
+      transliteration: w.transliteration ?? "",
+      exampleHebrew: w.example_he ?? "",
+      category: w.category ?? "",
+      difficulty: w.difficulty ?? "",
     }));
 
     return { words, demoMode: false };
