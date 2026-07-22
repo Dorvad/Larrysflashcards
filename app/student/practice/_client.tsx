@@ -93,8 +93,8 @@ export function StudentPracticeClient({
   }
 
   function handlePracticeMore() {
-    router.push("/student/practice");
-    router.refresh();
+    // Same-route navigation does not remount this client; bump ?n= so the page key changes.
+    router.replace(`/student/practice?n=${Date.now()}`);
   }
 
   const summary = useMemo(() => {

@@ -93,10 +93,17 @@ async function loadPracticeSession(): Promise<PracticePageData> {
 }
 
 
-export default async function PracticePage() {
+export default async function PracticePage({
+  searchParams,
+}: {
+  searchParams?: { n?: string };
+}) {
   const data = await loadPracticeSession();
+  const remountKey = searchParams?.n ?? data.sessionId ?? "initial";
+
   return (
     <StudentPracticeClient
+      key={remountKey}
       words={data.words}
       uniqueWordCount={data.uniqueWordCount}
       sessionId={data.sessionId}
